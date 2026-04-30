@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">Filmo</string>
+    <string name="camera_permission_title">Camera permission required</string>
+    <string name="camera_permission_message">Camera access is needed to preview and capture film photos.</string>
+    <string name="action_allow_permission">Allow permission</string>
+    <string name="action_open_settings">Open settings</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="gallery_title">Gallery</string>
+    <string name="route_camera">Camera</string>
+    <string name="route_photo_detail">Photo detail</string>
 </resources>
