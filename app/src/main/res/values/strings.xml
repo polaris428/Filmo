@@ -2,6 +2,8 @@
     <string name="app_name">Filmo</string>
     <string name="camera_permission_title">Camera permission required</string>
     <string name="camera_permission_message">Camera access is needed to preview and capture film photos.</string>
+    <string name="camera_permission_denied_forever_message">Camera permission is blocked. Enable it in app settings to use the preview.</string>
+    <string name="camera_preview_error_title">Camera preview unavailable</string>
     <string name="action_allow_permission">Allow permission</string>
     <string name="action_open_settings">Open settings</string>
     <string name="action_retry">Retry</string>
