@@ -10,11 +10,14 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,12 +26,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,16 +45,28 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,6 +79,8 @@ import com.polaris.filmo.core.design.FilmoSize
 import com.polaris.filmo.core.design.FilmoSpacing
 import com.polaris.filmo.core.design.FilmoTextStyle
 import com.polaris.filmo.core.renderer.CameraPreviewView
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -69,6 +89,7 @@ fun CameraScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
     val activity = context.findActivity()
     val lifecycleOwner = LocalLifecycleOwner.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -91,6 +112,7 @@ fun CameraScreen(
     val films = remember(context, state.films) {
         state.films.map { it.toUiModel(context) }
     }
+    var previewSize by remember { androidx.compose.runtime.mutableStateOf(IntSize.Zero) }
 
     LaunchedEffect(Unit) {
         viewModel.handleIntent(CameraIntent.OnEnterScreen)
@@ -105,6 +127,19 @@ fun CameraScreen(
 
                 CameraEffect.OpenAppSettings -> {
                     context.openAppSettings()
+                }
+
+                CameraEffect.ShowFocusError -> {
+                    Toast.makeText(context, "Focus could not be adjusted.", Toast.LENGTH_SHORT)
+                        .show()
+                }
+
+                CameraEffect.PlayShutterFeedback -> {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+
+                is CameraEffect.ShowMessage -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
                 }
 
                 is CameraEffect.ShowError -> {
@@ -140,7 +175,24 @@ fun CameraScreen(
         CameraPreviewView(
             renderer = filmRenderer,
             selectedFilmType = state.selectedFilm,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { previewSize = it }
+                .pointerInput(state.previewState) {
+                    detectTapGestures { offset ->
+                        if (state.previewState is PreviewState.Ready &&
+                            size.width > 0 &&
+                            size.height > 0
+                        ) {
+                            viewModel.handleIntent(
+                                CameraIntent.OnTapPreview(
+                                    x = offset.x / size.width,
+                                    y = offset.y / size.height
+                                )
+                            )
+                        }
+                    }
+                }
         )
 
         when (val previewState = state.previewState) {
@@ -167,6 +219,49 @@ fun CameraScreen(
         }
 
         if (state.previewState is PreviewState.Ready) {
+            CircleIconButton(
+                enabled = !state.isSwitchingCamera,
+                onClick = { viewModel.handleIntent(CameraIntent.OnSwitchCamera) },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(
+                        top = FilmoSpacing.Space32,
+                        end = FilmoSpacing.Space16
+                    )
+            ) {
+                CameraSwitchIcon()
+            }
+
+            FocusRing(
+                focusPoint = state.focusPoint,
+                previewSize = previewSize,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            CaptureFlash(
+                visible = state.captureFeedbackState is CaptureFeedbackState.Flash,
+                onFinished = {
+                    viewModel.handleIntent(CameraIntent.OnCaptureFeedbackFinished)
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            ShutterButton(
+                capturing = state.isCapturing,
+                onClick = { viewModel.handleIntent(CameraIntent.OnClickShutter) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 156.dp)
+            )
+
+            SaveStatusToast(
+                saveStatus = state.saveStatus,
+                onRetry = { viewModel.handleIntent(CameraIntent.OnRetrySave) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 244.dp)
+            )
+
             FilmStrip(
                 films = films,
                 selectedFilmId = state.selectedFilmId,
@@ -182,6 +277,224 @@ fun CameraScreen(
                         end = FilmoSpacing.Space16,
                         bottom = FilmoSpacing.Space24
                     )
+            )
+        }
+    }
+}
+
+@Composable
+private fun CircleIconButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(FilmoSize.IconButton)
+            .clip(CircleShape)
+            .background(FilmoColors.SurfaceOverlay)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun CameraSwitchIcon(
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(FilmoSize.Icon)) {
+        val strokeWidth = 2.dp.toPx()
+        val inset = 4.dp.toPx()
+        val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
+        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+
+        drawArc(
+            color = FilmoColors.TextPrimary,
+            startAngle = 35f,
+            sweepAngle = 130f,
+            useCenter = false,
+            topLeft = Offset(inset, inset),
+            size = arcSize,
+            style = stroke
+        )
+        drawArc(
+            color = FilmoColors.TextPrimary,
+            startAngle = 215f,
+            sweepAngle = 130f,
+            useCenter = false,
+            topLeft = Offset(inset, inset),
+            size = arcSize,
+            style = stroke
+        )
+        drawLine(
+            color = FilmoColors.TextPrimary,
+            start = Offset(size.width - 5.dp.toPx(), 5.dp.toPx()),
+            end = Offset(size.width - 8.dp.toPx(), 12.dp.toPx()),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = FilmoColors.TextPrimary,
+            start = Offset(5.dp.toPx(), size.height - 5.dp.toPx()),
+            end = Offset(8.dp.toPx(), size.height - 12.dp.toPx()),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+private fun FocusRing(
+    focusPoint: Offset?,
+    previewSize: IntSize,
+    modifier: Modifier = Modifier
+) {
+    if (focusPoint == null || previewSize == IntSize.Zero) return
+
+    val scale = remember(focusPoint) { Animatable(0.82f) }
+    val alpha = remember(focusPoint) { Animatable(1f) }
+    val ringSize = 64.dp
+
+    LaunchedEffect(focusPoint) {
+        scale.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 180)
+        )
+        alpha.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(durationMillis = 470)
+        )
+    }
+
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .offset {
+                    val ringSizePx = ringSize.roundToPx()
+                    IntOffset(
+                        x = (focusPoint.x * previewSize.width - ringSizePx / 2f).roundToInt(),
+                        y = (focusPoint.y * previewSize.height - ringSizePx / 2f).roundToInt()
+                    )
+                }
+                .size(ringSize)
+                .graphicsLayer {
+                    scaleX = scale.value
+                    scaleY = scale.value
+                    this.alpha = alpha.value
+                }
+                .border(
+                    width = 2.dp,
+                    color = FilmoColors.Focus,
+                    shape = CircleShape
+                )
+        )
+    }
+}
+
+@Composable
+private fun CaptureFlash(
+    visible: Boolean,
+    onFinished: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (!visible) return
+
+    val alpha = remember(visible) { Animatable(0.65f) }
+
+    LaunchedEffect(visible) {
+        alpha.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(durationMillis = 120)
+        )
+        delay(20)
+        onFinished()
+    }
+
+    Box(
+        modifier = modifier
+            .background(Color.White.copy(alpha = alpha.value))
+    )
+}
+
+@Composable
+private fun ShutterButton(
+    capturing: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(FilmoSize.ShutterOuter)
+            .clip(CircleShape)
+            .background(FilmoColors.SurfaceOverlay)
+            .border(
+                width = 2.dp,
+                color = FilmoColors.TextPrimary,
+                shape = CircleShape
+            )
+            .clickable(enabled = !capturing, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(if (capturing) 46.dp else FilmoSize.ShutterInner)
+                .clip(CircleShape)
+                .background(
+                    if (capturing) {
+                        FilmoColors.PrimaryMuted
+                    } else {
+                        FilmoColors.Primary
+                    }
+                )
+        )
+    }
+}
+
+@Composable
+private fun SaveStatusToast(
+    saveStatus: SaveStatus?,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val status = saveStatus ?: return
+    val message = when (status) {
+        SaveStatus.Saving -> "Saving photo..."
+        is SaveStatus.Success -> "Saved to gallery"
+        is SaveStatus.Failure -> status.reason
+    }
+
+    Column(
+        modifier = modifier
+            .widthIn(max = 360.dp)
+            .padding(horizontal = FilmoSpacing.Space16)
+            .background(
+                color = FilmoColors.SurfaceOverlay,
+                shape = RoundedCornerShape(FilmoRadius.Full)
+            )
+            .padding(
+                horizontal = FilmoSpacing.Space16,
+                vertical = FilmoSpacing.Space8
+            ),
+        verticalArrangement = Arrangement.spacedBy(FilmoSpacing.Space4),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = message,
+            color = FilmoColors.TextPrimary,
+            style = FilmoTextStyle.Label,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (status is SaveStatus.Failure && status.canRetry) {
+            Text(
+                text = "Retry",
+                color = FilmoColors.Primary,
+                style = FilmoTextStyle.Label,
+                modifier = Modifier.clickable(onClick = onRetry)
             )
         }
     }

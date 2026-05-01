@@ -53,6 +53,8 @@ class FilmRenderer @Inject constructor(
     private var positionScaleX: Float = 1f
     private var positionScaleY: Float = 1f
     private var startTimeNanos: Long = 0L
+    @Volatile
+    private var pendingCaptureCallback: ((Result<CapturedFrame>) -> Unit)? = null
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
@@ -116,6 +118,7 @@ class FilmRenderer @Inject constructor(
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, VERTEX_COUNT)
         GLES20.glDisableVertexAttribArray(positionLocation)
         GLES20.glDisableVertexAttribArray(texCoordLocation)
+        consumePendingCapture()
     }
 
     override fun onSurfaceRequested(request: SurfaceRequest) {
@@ -135,7 +138,11 @@ class FilmRenderer @Inject constructor(
         textureSurfaceSource?.surface
 
     override fun captureCurrentFrame(callback: (Result<CapturedFrame>) -> Unit) {
-        callback(Result.failure(NotImplementedError("FBO capture is reserved for the capture plan.")))
+        if (pendingCaptureCallback != null) {
+            callback(Result.failure(IllegalStateException("Capture is already in progress.")))
+            return
+        }
+        pendingCaptureCallback = callback
     }
 
     fun release() {
@@ -192,6 +199,37 @@ class FilmRenderer @Inject constructor(
         return (System.nanoTime() - startTimeNanos) / NANOS_PER_SECOND
     }
 
+    private fun consumePendingCapture() {
+        val callback = pendingCaptureCallback ?: return
+        pendingCaptureCallback = null
+        callback(
+            runCatching {
+                check(viewWidth > 0 && viewHeight > 0) {
+                    "Preview size is not ready."
+                }
+                val buffer = ByteBuffer.allocateDirect(viewWidth * viewHeight * BYTES_PER_PIXEL)
+                    .order(ByteOrder.nativeOrder())
+                GLES20.glReadPixels(
+                    0,
+                    0,
+                    viewWidth,
+                    viewHeight,
+                    GLES20.GL_RGBA,
+                    GLES20.GL_UNSIGNED_BYTE,
+                    buffer
+                )
+                val bytes = ByteArray(buffer.capacity())
+                buffer.position(0)
+                buffer.get(bytes)
+                CapturedFrame(
+                    width = viewWidth,
+                    height = viewHeight,
+                    rgbaBytes = bytes
+                )
+            }
+        )
+    }
+
     private fun updateTextureCropScale() {
         val surfaceSize = lastSurfaceSize ?: return
         if (viewWidth <= 0 || viewHeight <= 0) return
@@ -222,6 +260,7 @@ class FilmRenderer @Inject constructor(
     private companion object {
         const val VERTEX_COUNT = 4
         const val FLOAT_SIZE_BYTES = 4
+        const val BYTES_PER_PIXEL = 4
         const val COMPONENTS_PER_VERTEX = 4
         const val VERTEX_STRIDE_BYTES = COMPONENTS_PER_VERTEX * FLOAT_SIZE_BYTES
         const val NANOS_PER_SECOND = 1_000_000_000f

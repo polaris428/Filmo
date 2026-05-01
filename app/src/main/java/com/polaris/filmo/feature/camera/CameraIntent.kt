@@ -5,6 +5,11 @@ sealed interface CameraIntent {
     data object OnResume : CameraIntent
     data object OnRetryPreview : CameraIntent
     data object OnClickPermissionPrimaryAction : CameraIntent
+    data object OnSwitchCamera : CameraIntent
+    data object OnClickShutter : CameraIntent
+    data object OnRetrySave : CameraIntent
+    data object OnCaptureFeedbackFinished : CameraIntent
+    data class OnTapPreview(val x: Float, val y: Float) : CameraIntent
     data class OnSelectFilm(val filmId: String) : CameraIntent
     data class OnPermissionResult(
         val granted: Boolean,

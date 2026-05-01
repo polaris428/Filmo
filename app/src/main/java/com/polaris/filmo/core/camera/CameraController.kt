@@ -9,5 +9,9 @@ interface CameraController {
         lifecycleOwner: LifecycleOwner
     ): Result<Unit>
 
+    suspend fun switchCamera(targetLensFacing: LensFacing): Result<Unit>
+
+    suspend fun focusAt(x: Float, y: Float): Result<Unit>
+
     fun stopPreview()
 }

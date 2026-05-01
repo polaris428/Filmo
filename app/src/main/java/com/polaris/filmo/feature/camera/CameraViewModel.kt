@@ -3,9 +3,14 @@ package com.polaris.filmo.feature.camera
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.compose.ui.geometry.Offset
 import com.polaris.filmo.core.camera.CameraController
 import com.polaris.filmo.core.camera.CameraPermissionChecker
+import com.polaris.filmo.core.camera.LensFacing
+import com.polaris.filmo.core.renderer.CapturedFrame
 import com.polaris.filmo.core.renderer.FilmRenderer
+import com.polaris.filmo.domain.model.FilmType
+import com.polaris.filmo.domain.usecase.SavePhotoUseCase
 import com.polaris.filmo.domain.usecase.GetFilmListUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -17,12 +22,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @HiltViewModel
 class CameraViewModel @Inject constructor(
     private val permissionChecker: CameraPermissionChecker,
     private val cameraController: CameraController,
+    private val savePhoto: SavePhotoUseCase,
     getFilmList: GetFilmListUseCase,
     val filmRenderer: FilmRenderer
 ) : ViewModel() {
@@ -32,6 +41,10 @@ class CameraViewModel @Inject constructor(
     private val _effects = Channel<CameraEffect>(Channel.BUFFERED)
     val effects: Flow<CameraEffect> = _effects.receiveAsFlow()
     private var filmSelectionJob: Job? = null
+    private var focusRingJob: Job? = null
+    private var saveStatusJob: Job? = null
+    private var lastCapturedFrame: CapturedFrame? = null
+    private var lastCapturedFilm: FilmType? = null
 
     fun handleIntent(intent: CameraIntent) {
         when (intent) {
@@ -39,6 +52,11 @@ class CameraViewModel @Inject constructor(
             CameraIntent.OnResume -> checkPermissionAndContinue(requestIfUnknown = false)
             CameraIntent.OnRetryPreview -> checkPermissionAndContinue(requestIfUnknown = false)
             CameraIntent.OnClickPermissionPrimaryAction -> onClickPermissionPrimaryAction()
+            CameraIntent.OnSwitchCamera -> onSwitchCamera()
+            CameraIntent.OnClickShutter -> onClickShutter()
+            CameraIntent.OnRetrySave -> onRetrySave()
+            CameraIntent.OnCaptureFeedbackFinished -> onCaptureFeedbackFinished()
+            is CameraIntent.OnTapPreview -> onTapPreview(intent.x, intent.y)
             is CameraIntent.OnSelectFilm -> onSelectFilm(intent.filmId)
             is CameraIntent.OnPermissionResult -> onPermissionResult(intent)
         }
@@ -178,4 +196,186 @@ class CameraViewModel @Inject constructor(
                 }
         }
     }
+
+    private fun onSwitchCamera() {
+        val current = _state.value
+        if (current.isSwitchingCamera || current.previewState !is PreviewState.Ready) return
+
+        val target = when (current.lensFacing) {
+            LensFacing.Back -> LensFacing.Front
+            LensFacing.Front -> LensFacing.Back
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(isSwitchingCamera = true) }
+            cameraController.switchCamera(target)
+                .onSuccess {
+                    filmRenderer.setFilm(_state.value.selectedFilm)
+                    _state.update {
+                        it.copy(
+                            lensFacing = target,
+                            isSwitchingCamera = false,
+                            errorMessage = null
+                        )
+                    }
+                }
+                .onFailure { throwable ->
+                    val message = throwable.localizedMessage ?: "Camera could not be switched."
+                    _state.update {
+                        it.copy(
+                            isSwitchingCamera = false,
+                            errorMessage = message
+                        )
+                    }
+                    _effects.send(CameraEffect.ShowError(message))
+                }
+        }
+    }
+
+    private fun onTapPreview(x: Float, y: Float) {
+        if (_state.value.previewState !is PreviewState.Ready) return
+
+        focusRingJob?.cancel()
+        focusRingJob = viewModelScope.launch {
+            val focusPoint = Offset(x, y)
+            _state.update { it.copy(focusPoint = focusPoint) }
+
+            cameraController.focusAt(x, y)
+                .onFailure {
+                    _effects.send(CameraEffect.ShowFocusError)
+                }
+
+            delay(FOCUS_RING_DURATION_MILLIS)
+            _state.update {
+                if (it.focusPoint == focusPoint) {
+                    it.copy(focusPoint = null)
+                } else {
+                    it
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val FOCUS_RING_DURATION_MILLIS = 650L
+        const val SAVE_STATUS_DURATION_MILLIS = 2_000L
+    }
+
+    private fun onClickShutter() {
+        val current = _state.value
+        if (current.isCapturing ||
+            current.previewState !is PreviewState.Ready ||
+            !permissionChecker.hasCameraPermission()
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            val film = _state.value.selectedFilm
+            _state.update {
+                it.copy(
+                    isCapturing = true,
+                    captureFeedbackState = CaptureFeedbackState.Flash,
+                    saveStatus = SaveStatus.Saving,
+                    errorMessage = null
+                )
+            }
+            _effects.send(CameraEffect.PlayShutterFeedback)
+
+            captureCurrentFrame()
+                .onSuccess { frame ->
+                    lastCapturedFrame = frame
+                    lastCapturedFilm = film
+                    saveCapturedFrame(frame, film)
+                }
+                .onFailure { throwable ->
+                    val message = throwable.localizedMessage ?: "Photo could not be captured."
+                    lastCapturedFrame = null
+                    lastCapturedFilm = null
+                    _state.update {
+                        it.copy(
+                            isCapturing = false,
+                            saveStatus = SaveStatus.Failure(message, canRetry = false),
+                            errorMessage = message
+                        )
+                    }
+                    _effects.send(CameraEffect.ShowMessage(message))
+                }
+        }
+    }
+
+    private fun onRetrySave() {
+        val frame = lastCapturedFrame ?: return
+        val film = lastCapturedFilm ?: _state.value.selectedFilm
+        if (_state.value.isCapturing) return
+
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    isCapturing = true,
+                    saveStatus = SaveStatus.Saving,
+                    errorMessage = null
+                )
+            }
+            saveCapturedFrame(frame, film)
+        }
+    }
+
+    private fun onCaptureFeedbackFinished() {
+        _state.update { it.copy(captureFeedbackState = CaptureFeedbackState.Idle) }
+    }
+
+    private suspend fun saveCapturedFrame(
+        frame: CapturedFrame,
+        film: FilmType
+    ) {
+        savePhoto(frame, film)
+            .onSuccess { photo ->
+                lastCapturedFrame = null
+                lastCapturedFilm = null
+                _state.update {
+                    it.copy(
+                        isCapturing = false,
+                        saveStatus = SaveStatus.Success(photo),
+                        lastSavedPhoto = photo,
+                        errorMessage = null
+                    )
+                }
+                _effects.send(CameraEffect.ShowMessage("Photo saved."))
+                clearSaveStatusLater()
+            }
+            .onFailure { throwable ->
+                val message = throwable.localizedMessage ?: "Photo could not be saved."
+                _state.update {
+                    it.copy(
+                        isCapturing = false,
+                        saveStatus = SaveStatus.Failure(message, canRetry = true),
+                        errorMessage = message
+                    )
+                }
+                _effects.send(CameraEffect.ShowMessage(message))
+            }
+    }
+
+    private fun clearSaveStatusLater() {
+        saveStatusJob?.cancel()
+        saveStatusJob = viewModelScope.launch {
+            delay(SAVE_STATUS_DURATION_MILLIS)
+            _state.update {
+                if (it.saveStatus is SaveStatus.Success) {
+                    it.copy(saveStatus = null)
+                } else {
+                    it
+                }
+            }
+        }
+    }
+
+    private suspend fun captureCurrentFrame(): Result<CapturedFrame> =
+        suspendCancellableCoroutine { continuation ->
+            filmRenderer.captureCurrentFrame { result ->
+                if (continuation.isActive) {
+                    continuation.resume(result)
+                }
+            }
+        }
 }
