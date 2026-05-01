@@ -5,7 +5,10 @@ import com.polaris.filmo.domain.model.FilmType
 data class CameraState(
     val previewState: PreviewState = PreviewState.Idle,
     val permissionState: CameraPermissionState = CameraPermissionState.Unknown,
+    val films: List<FilmType> = FilmType.entries,
     val selectedFilm: FilmType = FilmType.Portra400,
+    val selectedFilmId: String = FilmType.Portra400.id,
+    val isApplyingFilm: Boolean = false,
     val isInitializing: Boolean = false,
     val errorMessage: String? = null
 )

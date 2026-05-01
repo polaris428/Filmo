@@ -11,9 +11,9 @@
 | 02 | 카메라 권한 처리 | 완료 | 최초 진입 권한 요청, 권한 결과 처리, 거부/다시 묻지 않음 안내, 앱 설정 이동, 복귀 시 재확인 구현 |
 | 03 | OpenGL 렌더링 파이프라인 만들기 | 완료 | `GLSurfaceView`, OES 텍스처, CameraX `SurfaceProvider`, vertex shader, 필름 fragment shader 연결, 원본 비율 유지 렌더링 적용 |
 | 04 | 필름 GLSL 셰이더 구현하기 | 완료 | 필름 5종 fragment shader, 공통 GLSL 함수, shader asset 병합, 필름별 uniform config, 런타임 shader 교체 구현 |
-| 05 | 필름 프리뷰 자산 만들기 | 미시작 | 다음 구현 대상 |
-| 06 | 필름 선택하기 | 미시작 | `CameraState.selectedFilm`과 renderer 연동은 있으나, 사용자가 필름을 선택하는 UI/Intent는 아직 없음 |
-| 07 | 카메라 조작하기 | 미시작 | 06 이후 진행 |
+| 05 | 필름 프리뷰 자산 만들기 | 완료 | 필름 5종 drawable 썸네일, 필름 메타데이터, `FilmUiModel` 변환, 문자열/placeholder fallback 구현 |
+| 06 | 필름 선택하기 | 완료 | `GetFilmListUseCase`, `CameraState` 필름 목록/선택 상태, `OnSelectFilm`, 하단 `FilmStrip`/`FilmChip`, renderer 필름 전환 연결 |
+| 07 | 카메라 조작하기 | 미시작 | 다음 구현 대상 |
 | 08 | 필터로 촬영하기 | 미시작 | `RenderFrameCapturer` 인터페이스는 있으나 FBO 캡처 구현은 아직 예약 상태 |
 | 09 | 사진 저장하기 | 미시작 | 08 이후 진행 |
 | 10 | 촬영 사진 목록 보기 | 미시작 | 09 이후 진행 |
@@ -28,6 +28,8 @@
 - `app/src/main/java/com/polaris/filmo/feature/camera/CameraState.kt`
 - `app/src/main/java/com/polaris/filmo/feature/camera/CameraIntent.kt`
 - `app/src/main/java/com/polaris/filmo/feature/camera/CameraEffect.kt`
+- `app/src/main/java/com/polaris/filmo/feature/camera/FilmUiModel.kt`
+- `app/src/main/java/com/polaris/filmo/domain/usecase/GetFilmListUseCase.kt`
 - `app/src/main/java/com/polaris/filmo/core/camera/CameraController.kt`
 - `app/src/main/java/com/polaris/filmo/core/camera/CameraXController.kt`
 - `app/src/main/java/com/polaris/filmo/core/camera/CameraPermissionChecker.kt`
@@ -49,6 +51,12 @@
 - `app/src/main/assets/shader/ilford.frag`
 - `app/src/main/assets/shader/lomography.frag`
 - `app/src/main/assets/shader/expired.frag`
+- `app/src/main/res/drawable/film_preview_placeholder.xml`
+- `app/src/main/res/drawable/film_portra_preview.xml`
+- `app/src/main/res/drawable/film_velvia_preview.xml`
+- `app/src/main/res/drawable/film_ilford_preview.xml`
+- `app/src/main/res/drawable/film_lomography_preview.xml`
+- `app/src/main/res/drawable/film_expired_preview.xml`
 
 ## 검증
 
@@ -63,10 +71,14 @@
   - 카메라 프리뷰가 원본 비율을 유지하며 화면 안에 맞춰 표시
   - 기본 필름 `Portra400` shader가 프리뷰에 적용
   - renderer에 `FilmType` 변경 요청 시 필름별 shader program 교체
+  - 필름 5종의 UI 모델이 이름, 설명, 썸네일, accent color를 제공
+  - 썸네일 리소스 조회 실패 시 placeholder drawable 사용
+  - 하단 필름 스트립에서 필름 5종 표시
+  - 필름 선택 시 선택 상태와 프리뷰 shader 전환
   - 앱 pause/resume 후 GL preview 복구
 
 ## 다음 작업
 
-다음 구현 대상은 `05-build-film-preview-assets.md`이다. 현재 필름 효과는 렌더러와 shader 레벨에 구현되어 있지만, 필름 선택 화면에서 사용할 프리뷰 자산과 실제 선택 UI는 아직 없다.
+다음 구현 대상은 `07-control-camera.md`이다. 현재 필름 선택과 shader 전환까지 연결되어 있고, 전면/후면 전환과 탭 포커스 같은 카메라 조작 기능은 아직 없다.
 
 저장 이미지가 프리뷰와 같은 렌더링 경로를 사용해야 한다는 04번의 요구는 08번 `필터로 촬영하기`와 09번 `사진 저장하기`에서 FBO 캡처 및 저장 흐름을 구현할 때 이어서 검증해야 한다.

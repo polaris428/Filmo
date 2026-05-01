@@ -12,4 +12,14 @@
     <string name="gallery_title">Gallery</string>
     <string name="route_camera">Camera</string>
     <string name="route_photo_detail">Photo detail</string>
+    <string name="film_name_portra_400">Portra 400</string>
+    <string name="film_desc_portra_400">Warm portrait tone</string>
+    <string name="film_name_velvia_50">Velvia 50</string>
+    <string name="film_desc_velvia_50">Vivid landscape tone</string>
+    <string name="film_name_ilford_hp5">Ilford HP5</string>
+    <string name="film_desc_ilford_hp5">Gritty monochrome tone</string>
+    <string name="film_name_lomography">Lomography</string>
+    <string name="film_desc_lomography">Bold lomo tone</string>
+    <string name="film_name_expired_film">Expired Film</string>
+    <string name="film_desc_expired_film">Faded vintage tone</string>
 </resources>

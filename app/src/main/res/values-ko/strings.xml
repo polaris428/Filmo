@@ -12,4 +12,14 @@
     <string name="gallery_title">갤러리</string>
     <string name="route_camera">카메라</string>
     <string name="route_photo_detail">사진 상세</string>
+    <string name="film_name_portra_400">Portra 400</string>
+    <string name="film_desc_portra_400">따뜻한 인물 톤</string>
+    <string name="film_name_velvia_50">Velvia 50</string>
+    <string name="film_desc_velvia_50">선명한 풍경 톤</string>
+    <string name="film_name_ilford_hp5">Ilford HP5</string>
+    <string name="film_desc_ilford_hp5">거친 흑백 톤</string>
+    <string name="film_name_lomography">Lomography</string>
+    <string name="film_desc_lomography">강한 로모 톤</string>
+    <string name="film_name_expired_film">Expired Film</string>
+    <string name="film_desc_expired_film">빛바랜 빈티지 톤</string>
 </resources>

@@ -20,8 +20,8 @@
 | `app/src/main/res/drawable/film_ilford_preview.*` | Ilford 썸네일 |
 | `app/src/main/res/drawable/film_lomography_preview.*` | Lomography 썸네일 |
 | `app/src/main/res/drawable/film_expired_preview.*` | Expired 썸네일 |
-| `app/domain/model/FilmType.kt` | 썸네일 res name, 설명, accent token 연결 |
-| `app/feature/camera/FilmUiModel.kt` | 썸네일 리소스 필드 정의 |
+| `app/src/main/java/com/polaris/filmo/domain/model/FilmType.kt` | 썸네일 res name, 설명, accent token 연결 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/FilmUiModel.kt` | 썸네일 리소스 필드 정의 |
 
 ## 상세 개발 절차
 
@@ -60,3 +60,10 @@
 - 같은 원본 기준이라 필름별 색감 차이를 비교할 수 있다.
 - 썸네일 로드 실패 시 앱이 깨지지 않는다.
 - 필름 선택 UI에서 이름, 설명, 선택 상태가 모두 보인다.
+
+## 구현 결과
+
+- 필름 5종 썸네일은 동일한 vector 구도에 필름별 색감을 다르게 적용했다.
+- `FilmType`은 `id`, fallback 표시 이름/설명, `thumbnailResName`, `accentColorToken`을 가진다.
+- `FilmUiModel`은 리소스 문자열과 drawable을 runtime에 해석하고, 썸네일 조회 실패 시 `film_preview_placeholder`를 사용한다.
+- 실제 선택 상태 표시는 06번 필름 선택 UI에서 구현한다.

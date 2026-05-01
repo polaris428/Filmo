@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.polaris.filmo.core.camera.CameraController
 import com.polaris.filmo.core.camera.CameraPermissionChecker
 import com.polaris.filmo.core.renderer.FilmRenderer
+import com.polaris.filmo.domain.usecase.GetFilmListUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -21,13 +23,15 @@ import kotlinx.coroutines.launch
 class CameraViewModel @Inject constructor(
     private val permissionChecker: CameraPermissionChecker,
     private val cameraController: CameraController,
+    getFilmList: GetFilmListUseCase,
     val filmRenderer: FilmRenderer
 ) : ViewModel() {
-    private val _state = MutableStateFlow(CameraState())
+    private val _state = MutableStateFlow(CameraState(films = getFilmList()))
     val state: StateFlow<CameraState> = _state.asStateFlow()
 
     private val _effects = Channel<CameraEffect>(Channel.BUFFERED)
     val effects: Flow<CameraEffect> = _effects.receiveAsFlow()
+    private var filmSelectionJob: Job? = null
 
     fun handleIntent(intent: CameraIntent) {
         when (intent) {
@@ -35,6 +39,7 @@ class CameraViewModel @Inject constructor(
             CameraIntent.OnResume -> checkPermissionAndContinue(requestIfUnknown = false)
             CameraIntent.OnRetryPreview -> checkPermissionAndContinue(requestIfUnknown = false)
             CameraIntent.OnClickPermissionPrimaryAction -> onClickPermissionPrimaryAction()
+            is CameraIntent.OnSelectFilm -> onSelectFilm(intent.filmId)
             is CameraIntent.OnPermissionResult -> onPermissionResult(intent)
         }
     }
@@ -137,6 +142,40 @@ class CameraViewModel @Inject constructor(
             } else {
                 _effects.send(CameraEffect.RequestCameraPermission)
             }
+        }
+    }
+
+    private fun onSelectFilm(filmId: String) {
+        val nextFilm = _state.value.films.firstOrNull { it.id == filmId } ?: return
+        if (_state.value.selectedFilm == nextFilm) return
+
+        filmSelectionJob?.cancel()
+        filmSelectionJob = viewModelScope.launch {
+            val previous = _state.value.selectedFilm
+            _state.update {
+                it.copy(
+                    selectedFilm = nextFilm,
+                    selectedFilmId = nextFilm.id,
+                    isApplyingFilm = true
+                )
+            }
+
+            filmRenderer.setFilm(nextFilm)
+                .onSuccess {
+                    _state.update { it.copy(isApplyingFilm = false) }
+                }
+                .onFailure { throwable ->
+                    val message = throwable.localizedMessage ?: "Film could not be applied."
+                    _state.update {
+                        it.copy(
+                            selectedFilm = previous,
+                            selectedFilmId = previous.id,
+                            isApplyingFilm = false,
+                            errorMessage = message
+                        )
+                    }
+                    _effects.send(CameraEffect.ShowError(message))
+                }
         }
     }
 }

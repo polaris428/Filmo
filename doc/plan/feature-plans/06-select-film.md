@@ -18,13 +18,13 @@
 
 | 경로 | 작업 |
 | --- | --- |
-| `app/domain/model/FilmType.kt` | 필름 enum 또는 sealed class 정의 |
-| `app/domain/usecase/GetFilmListUseCase.kt` | 필름 목록 반환 |
-| `app/feature/camera/FilmUiModel.kt` | UI 표시용 모델 정의 |
-| `app/feature/camera/CameraState.kt` | `films`, `selectedFilmId`, `isApplyingFilm` 추가 |
-| `app/feature/camera/CameraIntent.kt` | `OnSelectFilm(filmId)` 추가 |
-| `app/core/renderer/FilmRenderer.kt` | `setFilm(filmType)` 인터페이스 제공 |
-| `app/feature/camera/CameraScreen.kt` | `FilmStrip`, `FilmChip` 연결 |
+| `app/src/main/java/com/polaris/filmo/domain/model/FilmType.kt` | 필름 enum 또는 sealed class 정의 |
+| `app/src/main/java/com/polaris/filmo/domain/usecase/GetFilmListUseCase.kt` | 필름 목록 반환 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/FilmUiModel.kt` | UI 표시용 모델 정의 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraState.kt` | `films`, `selectedFilmId`, `isApplyingFilm` 추가 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraIntent.kt` | `OnSelectFilm(filmId)` 추가 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/FilmRenderer.kt` | `setFilm(filmType)` 인터페이스 제공 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraScreen.kt` | `FilmStrip`, `FilmChip` 연결 |
 
 ## 상세 개발 절차
 
@@ -84,3 +84,11 @@ data class CameraState(
 - 필름 선택 시 `FilmRenderer.setFilm()`이 호출된다.
 - 렌더러 적용 성공 후 선택 UI가 갱신된다.
 - 렌더러 적용 실패 시 이전 필름 선택이 유지된다.
+
+## 구현 결과
+
+- `GetFilmListUseCase`는 `FilmType.entries`를 정렬 순서 그대로 반환한다.
+- `CameraState`는 `films`, `selectedFilm`, `selectedFilmId`, `isApplyingFilm`을 가진다.
+- `CameraIntent.OnSelectFilm(filmId)`가 추가되었고, ViewModel은 빠른 연속 선택 시 이전 선택 job을 취소한다.
+- 선택 성공 시 `FilmRenderer.setFilm()`을 호출하고, 실패 시 이전 필름으로 되돌린 뒤 `ShowError` effect를 보낸다.
+- `CameraScreen`은 preview ready 상태에서 하단 `FilmStrip`을 표시하고, 각 항목은 썸네일/이름/설명/선택 표시/적용 중 indicator를 가진다.
