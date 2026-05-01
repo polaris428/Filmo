@@ -18,7 +18,7 @@
 | 카메라 | CameraX Preview |
 | 렌더링 | OpenGL ES 2.0, GLSurfaceView |
 | 셰이더 | GLSL Fragment Shader |
-| 이미지 저장 | MediaStore API 예정 |
+| 이미지 저장 | MediaStore API |
 | UI | Jetpack Compose |
 | 아키텍처 | Feature-based Clean Architecture + MVI |
 | 의존성 주입 | Hilt |
@@ -44,9 +44,20 @@ app/
 │   │   └── CapturedFrame.kt           // 캡처 결과 모델
 │   └── di/
 │       └── AppModule.kt
+├── data/
+│   ├── datasource/
+│   │   └── PhotoLocalDataSource.kt
+│   └── repository/
+│       └── PhotoRepositoryImpl.kt
 ├── domain/
 │   ├── model/
-│   │   └── FilmType.kt         // 필름 종류 enum
+│   │   ├── FilmType.kt         // 필름 종류 enum
+│   │   └── CapturedPhoto.kt    // 저장된 사진 모델
+│   ├── repository/
+│   │   └── PhotoRepository.kt
+│   └── usecase/
+│       ├── GetFilmListUseCase.kt
+│       └── SavePhotoUseCase.kt
 └── feature/
     ├── camera/
     │   ├── CameraScreen.kt
@@ -56,7 +67,7 @@ app/
     │   └── CameraEffect.kt
 ```
 
-`media`, `data`, `gallery`, 촬영/저장 유스케이스는 아직 구현 전이며 촬영/저장/갤러리 관련 플랜에서 추가한다.
+`media`, `data`, 촬영/저장 유스케이스는 구현되었다. `gallery` feature와 사진 목록 조회/삭제 흐름은 갤러리 관련 플랜에서 추가한다.
 
 ## 레이어 책임
 
@@ -64,7 +75,7 @@ app/
 | --- | --- |
 | feature | Compose 화면, MVI 상태/이벤트/일회성 효과, 사용자 입력 처리 |
 | domain | 앱 규칙, 필름/사진 모델, 유스케이스, repository 인터페이스 |
-| data | domain repository 구현, 로컬 데이터 소스 조합. 현재 미구현 |
+| data | domain repository 구현, 로컬 데이터 소스 조합 |
 | core | CameraX, OpenGL, MediaStore, Hilt module 등 Android 플랫폼 어댑터 |
 
 `feature`는 OpenGL, CameraX, MediaStore의 구체 구현을 직접 다루지 않는다. 화면과 ViewModel은 유스케이스 또는 core의 얇은 컨트롤러 인터페이스를 통해 필요한 동작만 요청한다.
@@ -94,12 +105,13 @@ feature/
 core/
 ├── camera/
 ├── renderer/
+├── media/
 └── di/
 ```
 
 - `camera`: CameraX Preview 생명주기 연결, 카메라 권한 확인
 - `renderer`: GLSurfaceView, OpenGL ES 2.0, OES texture, ShaderProgram, 필름별 Fragment Shader 관리, 프리뷰 비율 보정
-- `media`: MediaStore 저장/삭제. 현재 미구현
+- `media`: MediaStore 저장. 삭제는 사진 상세/삭제 플랜에서 추가
 - `di`: Hilt 모듈 구성
 
 ## 의존성 방향
@@ -129,12 +141,12 @@ CameraX Preview의 `SurfaceProvider`를 `FilmRenderer`가 구현하고, CameraX 
 
 ## 촬영 및 저장 구조
 
-셔터 입력 시 현재 선택된 필름 효과가 적용된 결과물을 캡처하고 MediaStore API를 통해 기기 갤러리에 저장한다. 현재 코드는 `RenderFrameCapturer` 인터페이스와 `CapturedFrame` 모델만 준비되어 있으며 실제 FBO 캡처/저장은 아직 미구현이다.
+셔터 입력 시 현재 선택된 필름 효과가 적용된 결과물을 캡처하고 MediaStore API를 통해 기기 갤러리에 저장한다. `FilmRenderer`가 현재 GL surface의 RGBA 픽셀을 `glReadPixels`로 읽고, `MediaStorePhotoDataSource`가 JPEG로 변환해 `Pictures/Filmo`에 저장한다.
 
-- `core/renderer`가 FBO/readPixels 기반 렌더링 결과 캡처를 제공할 예정
+- `core/renderer`가 `RenderFrameCapturer`를 통해 readPixels 기반 렌더링 결과 캡처를 제공
 - `SavePhotoUseCase`가 저장 요청을 처리
 - `PhotoRepositoryImpl`이 `PhotoLocalDataSource`를 통해 MediaStore API 연동
-- 저장된 사진은 앱 내 갤러리에서도 조회 가능해야 함
+- 저장된 사진의 앱 내 목록 조회는 갤러리 플랜에서 `PhotoRepository` 조회 API를 확장해 연결
 
 ## 개발 순서
 

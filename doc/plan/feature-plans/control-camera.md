@@ -65,3 +65,11 @@ sealed interface CameraIntent {
 - 프리뷰를 탭하면 해당 위치에 포커스 링이 표시된다.
 - 포커스 실패 시 앱이 멈추지 않고 메시지를 표시한다.
 
+## 구현 상태
+
+- `LensFacing` enum과 `CameraState.lensFacing`, `isSwitchingCamera`, `focusPoint`를 추가했다.
+- `CameraController`/`CameraXController`에 `switchCamera()`와 `focusAt()`을 추가했다.
+- 전환 대상 카메라 존재 여부를 확인한 뒤 CameraX preview를 재바인딩한다.
+- 프리뷰 탭 좌표를 정규화해 CameraX `FocusMeteringAction`으로 전달한다.
+- `CameraScreen`에 우상단 전환 버튼과 64dp 포커스 링을 연결했다.
+

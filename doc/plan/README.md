@@ -42,9 +42,9 @@ Filmo는 필름 카메라 느낌의 실시간 프리뷰와 촬영 결과물을 �
 | 필름 GLSL 셰이더 구현하기 | 완료 | [implement-film-glsl-shaders.md](./feature-plans/implement-film-glsl-shaders.md) | 필름 선택, 촬영 | 필름 5종 fragment shader, 공통 GLSL 함수, shader asset 병합, 필름별 uniform config, 런타임 shader 교체 구현 |
 | 필름 프리뷰 자산 만들기 | 완료 | [build-film-preview-assets.md](./feature-plans/build-film-preview-assets.md) | 필름 선택 | 필름 5종 drawable 썸네일, 필름 메타데이터, `FilmUiModel` 변환, 문자열/placeholder fallback 구현 |
 | 필름 선택하기 | 완료 | [select-film.md](./feature-plans/select-film.md) | 필름 선택 | `GetFilmListUseCase`, `CameraState` 필름 목록/선택 상태, `OnSelectFilm`, 하단 `FilmStrip`/`FilmChip`, renderer 필름 전환 연결 |
-| 카메라 조작하기 | 미시작 | [control-camera.md](./feature-plans/control-camera.md) | 카메라 프리뷰 | 다음 구현 대상 |
-| 셔터로 촬영하고 저장하기 | 미시작 | [capture-and-save-photo.md](./feature-plans/capture-and-save-photo.md) | 촬영 | `RenderFrameCapturer` 인터페이스는 있으나 FBO 캡처와 MediaStore 저장 구현은 아직 예약 상태 |
-| 촬영 사진 목록 보기 | 미시작 | [view-gallery-list.md](./feature-plans/view-gallery-list.md) | 갤러리 | 촬영/저장 이후 진행 |
+| 카메라 조작하기 | 완료 | [control-camera.md](./feature-plans/control-camera.md) | 카메라 프리뷰 | 렌즈 방향 상태, 전/후면 전환, 탭 포커스, 포커스 링, 전환 중 중복 입력 방지 구현 |
+| 셔터로 촬영하고 저장하기 | 완료 | [capture-and-save-photo.md](./feature-plans/capture-and-save-photo.md) | 촬영 | 셔터 버튼, GL 렌더링 결과 캡처, MediaStore `Pictures/Filmo` 저장, 저장 상태/재시도 UI 구현. 앱 내 목록 조회는 다음 갤러리 플랜에서 연결 |
+| 촬영 사진 목록 보기 | 미시작 | [view-gallery-list.md](./feature-plans/view-gallery-list.md) | 갤러리 | 다음 구현 대상. 저장된 MediaStore 사진 목록 조회와 앱 내 갤러리 화면 연결 필요 |
 | 사진 상세 보기와 삭제 | 미시작 | [view-and-delete-photo.md](./feature-plans/view-and-delete-photo.md) | 갤러리 | 갤러리 목록 이후 진행 |
 | 성능, 라이프사이클, QA 정리 | 미시작 | [performance-lifecycle-qa.md](./feature-plans/performance-lifecycle-qa.md) | 공통 품질 | 주요 기능 구현 후 진행 |
 | 문자열 리소스와 다국어 정리 | 부분 진행 | [localization-string-resources.md](./feature-plans/localization-string-resources.md) | 공통 기반 | 카메라 권한/프리뷰/기본 갤러리 라우트 관련 문자열은 `values`, `values-ko`에 추가됨 |
@@ -67,10 +67,17 @@ Filmo는 필름 카메라 느낌의 실시간 프리뷰와 촬영 결과물을 �
 - `app/src/main/java/com/polaris/filmo/feature/camera/CameraIntent.kt`
 - `app/src/main/java/com/polaris/filmo/feature/camera/CameraEffect.kt`
 - `app/src/main/java/com/polaris/filmo/feature/camera/FilmUiModel.kt`
+- `app/src/main/java/com/polaris/filmo/domain/model/CapturedPhoto.kt`
+- `app/src/main/java/com/polaris/filmo/domain/repository/PhotoRepository.kt`
 - `app/src/main/java/com/polaris/filmo/domain/usecase/GetFilmListUseCase.kt`
+- `app/src/main/java/com/polaris/filmo/domain/usecase/SavePhotoUseCase.kt`
+- `app/src/main/java/com/polaris/filmo/data/datasource/PhotoLocalDataSource.kt`
+- `app/src/main/java/com/polaris/filmo/data/repository/PhotoRepositoryImpl.kt`
 - `app/src/main/java/com/polaris/filmo/core/camera/CameraController.kt`
 - `app/src/main/java/com/polaris/filmo/core/camera/CameraXController.kt`
+- `app/src/main/java/com/polaris/filmo/core/camera/LensFacing.kt`
 - `app/src/main/java/com/polaris/filmo/core/camera/CameraPermissionChecker.kt`
+- `app/src/main/java/com/polaris/filmo/core/media/MediaStorePhotoDataSource.kt`
 - `app/src/main/java/com/polaris/filmo/core/renderer/CameraPreviewView.kt`
 - `app/src/main/java/com/polaris/filmo/core/renderer/FilmGLSurfaceView.kt`
 - `app/src/main/java/com/polaris/filmo/core/renderer/FilmRenderer.kt`
@@ -114,9 +121,17 @@ Filmo는 필름 카메라 느낌의 실시간 프리뷰와 촬영 결과물을 �
   - 하단 필름 스트립에서 필름 5종 표시
   - 필름 선택 시 선택 상태와 프리뷰 shader 전환
   - 앱 pause/resume 후 GL preview 복구
+  - 우상단 카메라 전환 버튼으로 전면/후면 카메라 전환
+  - 카메라 전환 중 버튼 연속 입력 시 중복 세션 전환 방지
+  - 프리뷰 탭 위치에 포커스 링 표시 및 CameraX 포커스 요청
+  - 포커스 실패 시 앱 중단 없이 오류 메시지 표시
+  - 셔터 버튼 클릭 시 현재 GL 렌더링 결과 캡처
+  - 촬영/저장 중 셔터 연속 입력 시 중복 캡처/저장 방지
+  - 캡처 결과가 JPEG로 변환되어 `Pictures/Filmo`에 저장
+  - 저장 중/성공/실패 상태 UI 표시
+  - 저장 실패 시 마지막 캡처 결과가 있으면 재시도 가능
+  - 저장 결과가 현재 선택된 필름 효과를 포함
 
 ## 다음 작업
 
-다음 구현 대상은 위 표에서 처음으로 완료되지 않은 [control-camera.md](./feature-plans/control-camera.md)이다. 현재 필름 선택과 shader 전환까지 연결되어 있고, 전면/후면 전환과 탭 포커스 같은 카메라 조작 기능은 아직 없다.
-
-저장 이미지가 프리뷰와 같은 렌더링 경로를 사용해야 한다는 `필름 GLSL 셰이더 구현하기`의 요구는 `셔터로 촬영하고 저장하기`에서 FBO 캡처 및 저장 흐름을 구현할 때 이어서 검증해야 한다.
+다음 구현 대상은 위 표에서 처음으로 완료되지 않은 [view-gallery-list.md](./feature-plans/view-gallery-list.md)이다. 현재 촬영 결과는 MediaStore `Pictures/Filmo`에 저장되고 `CapturedPhoto` 모델로 반환되지만, 앱 내 갤러리 목록 화면에서 저장된 사진을 조회하는 흐름은 아직 없다.
