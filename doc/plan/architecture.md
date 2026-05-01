@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 프로젝트명 | Filmo |
-| 플랫폼 | Android, minSdk 26 |
+| 플랫폼 | Android, minSdk 24 |
 | 아키텍처 | Feature-based Clean Architecture + MVI |
 | 핵심 기술 | CameraX, OpenGL ES 2.0, GLSL |
 | 서버 | 없음, 로컬 전용 |
@@ -15,10 +15,10 @@
 
 | 분류 | 기술 |
 | --- | --- |
-| 카메라 | CameraX Preview, ImageCapture, ImageAnalysis |
+| 카메라 | CameraX Preview |
 | 렌더링 | OpenGL ES 2.0, GLSurfaceView |
 | 셰이더 | GLSL Fragment Shader |
-| 이미지 저장 | MediaStore API |
+| 이미지 저장 | MediaStore API 예정 |
 | UI | Jetpack Compose |
 | 아키텍처 | Feature-based Clean Architecture + MVI |
 | 의존성 주입 | Hilt |
@@ -29,41 +29,24 @@
 app/
 ├── core/
 │   ├── camera/
-│   │   ├── CameraController.kt        // CameraX 생명주기/렌즈/포커스 제어
-│   │   └── CameraFrameSource.kt       // 프레임 스트림 전달
+│   │   ├── CameraController.kt        // CameraX 프리뷰 제어 인터페이스
+│   │   ├── CameraXController.kt       // CameraX Preview 생명주기 연결
+│   │   └── CameraPermissionChecker.kt // 카메라 권한 확인
 │   ├── renderer/
 │   │   ├── FilmRenderer.kt            // GLSurfaceView.Renderer 구현
+│   │   ├── FilmGLSurfaceView.kt       // OpenGL SurfaceView 래퍼
+│   │   ├── CameraPreviewView.kt       // Compose와 GLSurfaceView 연결
+│   │   ├── FilmShaderConfig.kt        // 필름별 shader asset/uniform 설정
 │   │   ├── ShaderProgram.kt           // 셰이더 컴파일/링크
 │   │   ├── ShaderAssetLoader.kt       // shader asset 로드
-│   │   └── shader/
-│   │       ├── portra.frag
-│   │       ├── velvia.frag
-│   │       ├── ilford.frag
-│   │       ├── lomography.frag
-│   │       └── expired.frag
-│   ├── media/
-│   │   ├── MediaStorePhotoDataSource.kt // 기기 갤러리 저장/삭제
-│   │   └── RenderedFrameCapture.kt      // 렌더링 결과 캡처
+│   │   ├── TextureSurfaceSource.kt    // OES texture와 SurfaceTexture 생성
+│   │   ├── RenderFrameCapturer.kt     // 렌더링 결과 캡처 확장 지점
+│   │   └── CapturedFrame.kt           // 캡처 결과 모델
 │   └── di/
-│       ├── CameraModule.kt
-│       ├── RendererModule.kt
-│       └── RepositoryModule.kt
+│       └── AppModule.kt
 ├── domain/
 │   ├── model/
-│   │   ├── FilmType.kt         // 필름 종류 enum
-│   │   └── CapturedPhoto.kt    // 촬영된 사진 모델
-│   ├── repository/
-│   │   └── PhotoRepository.kt
-│   └── usecase/
-│       ├── GetFilmListUseCase.kt
-│       ├── GetCapturedPhotosUseCase.kt
-│       ├── SavePhotoUseCase.kt
-│       └── DeletePhotoUseCase.kt
-├── data/
-│   ├── datasource/
-│   │   └── PhotoLocalDataSource.kt
-│   └── repository/
-│       └── PhotoRepositoryImpl.kt
+│   │   └── FilmType.kt         // 필름 종류 enum
 └── feature/
     ├── camera/
     │   ├── CameraScreen.kt
@@ -71,13 +54,9 @@ app/
     │   ├── CameraState.kt
     │   ├── CameraIntent.kt
     │   └── CameraEffect.kt
-    └── gallery/
-        ├── GalleryScreen.kt
-        ├── GalleryViewModel.kt
-        ├── GalleryState.kt
-        ├── GalleryIntent.kt
-        └── GalleryEffect.kt
 ```
+
+`media`, `data`, `gallery`, 촬영/저장 유스케이스는 아직 구현 전이며 08~11번 플랜에서 추가한다.
 
 ## 레이어 책임
 
@@ -85,7 +64,7 @@ app/
 | --- | --- |
 | feature | Compose 화면, MVI 상태/이벤트/일회성 효과, 사용자 입력 처리 |
 | domain | 앱 규칙, 필름/사진 모델, 유스케이스, repository 인터페이스 |
-| data | domain repository 구현, 로컬 데이터 소스 조합 |
+| data | domain repository 구현, 로컬 데이터 소스 조합. 현재 미구현 |
 | core | CameraX, OpenGL, MediaStore, Hilt module 등 Android 플랫폼 어댑터 |
 
 `feature`는 OpenGL, CameraX, MediaStore의 구체 구현을 직접 다루지 않는다. 화면과 ViewModel은 유스케이스 또는 core의 얇은 컨트롤러 인터페이스를 통해 필요한 동작만 요청한다.
@@ -94,19 +73,15 @@ app/
 
 ```text
 feature/
-├── camera/
-│   ├── CameraScreen.kt
-│   ├── CameraViewModel.kt
-│   ├── CameraState.kt
-│   ├── CameraIntent.kt
-│   └── CameraEffect.kt
-└── gallery/
-    ├── GalleryScreen.kt
-    ├── GalleryViewModel.kt
-    ├── GalleryState.kt
-    ├── GalleryIntent.kt
-    └── GalleryEffect.kt
+└── camera/
+    ├── CameraScreen.kt
+    ├── CameraViewModel.kt
+    ├── CameraState.kt
+    ├── CameraIntent.kt
+    └── CameraEffect.kt
 ```
+
+`gallery` feature는 아직 구현 전이며 10~11번 플랜에서 추가한다.
 
 - `State`: 화면을 그리는 데 필요한 단일 상태
 - `Intent`: 사용자의 입력 또는 화면 이벤트
@@ -119,13 +94,12 @@ feature/
 core/
 ├── camera/
 ├── renderer/
-├── media/
 └── di/
 ```
 
-- `camera`: CameraX 프리뷰, 렌즈 전환, 탭 포커스, 프레임 스트림 전달
-- `renderer`: GLSurfaceView, OpenGL ES 2.0, ShaderProgram, 필름별 Fragment Shader 관리
-- `media`: MediaStore 저장/삭제, 렌더링 결과 캡처
+- `camera`: CameraX Preview 생명주기 연결, 카메라 권한 확인
+- `renderer`: GLSurfaceView, OpenGL ES 2.0, OES texture, ShaderProgram, 필름별 Fragment Shader 관리, 프리뷰 비율 보정
+- `media`: MediaStore 저장/삭제. 현재 미구현
 - `di`: Hilt 모듈 구성
 
 ## 의존성 방향
@@ -143,19 +117,21 @@ data -> core
 
 ## 렌더링 구조
 
-CameraX의 프리뷰 또는 프레임 스트림을 OpenGL 렌더링 레이어로 전달하고, 선택된 필름 타입에 맞는 Fragment Shader를 적용한다.
+CameraX Preview의 `SurfaceProvider`를 `FilmRenderer`가 구현하고, CameraX 프리뷰 프레임을 OES texture로 받아 OpenGL 렌더링 레이어에서 표시한다. 선택된 필름 타입에 맞는 Fragment Shader를 적용한다.
 
-- `core/camera`가 CameraX ImageAnalysis로 프레임 단위 스트림 처리
+- `core/camera`가 CameraX Preview를 생명주기에 bind
 - `core/renderer`가 GLSurfaceView에서 실시간 프리뷰 렌더링
+- `TextureSurfaceSource`가 CameraX에 제공할 `SurfaceTexture`/`Surface`를 생성
 - `FilmRenderer`가 필름 타입에 맞는 셰이더 프로그램 선택
 - `ShaderProgram`이 셰이더 컴파일과 링크 처리
+- `camera.vert`의 `uPositionScale`로 카메라 원본 비율을 유지하며 화면 안에 맞춤
 - 필름별 색보정, 노이즈, 비네팅, 빛샘 효과를 Fragment Shader에서 처리
 
 ## 촬영 및 저장 구조
 
-셔터 입력 시 현재 선택된 필름 효과가 적용된 결과물을 캡처하고 MediaStore API를 통해 기기 갤러리에 저장한다.
+셔터 입력 시 현재 선택된 필름 효과가 적용된 결과물을 캡처하고 MediaStore API를 통해 기기 갤러리에 저장한다. 현재 코드는 `RenderFrameCapturer` 인터페이스와 `CapturedFrame` 모델만 준비되어 있으며 실제 FBO 캡처/저장은 아직 미구현이다.
 
-- `core/media`가 ImageCapture 또는 렌더링 결과 캡처로 촬영 이미지 생성
+- `core/renderer`가 FBO/readPixels 기반 렌더링 결과 캡처를 제공할 예정
 - `SavePhotoUseCase`가 저장 요청을 처리
 - `PhotoRepositoryImpl`이 `PhotoLocalDataSource`를 통해 MediaStore API 연동
 - 저장된 사진은 앱 내 갤러리에서도 조회 가능해야 함
@@ -172,8 +148,9 @@ CameraX의 프리뷰 또는 프레임 스트림을 OpenGL 렌더링 레이어로
 
 ## 포트폴리오 어필 포인트
 
-- CameraX ImageAnalysis로 프레임 단위 스트림 처리
+- CameraX Preview SurfaceProvider와 OpenGL OES texture 직접 연결
 - GLSL Fragment Shader 직접 작성
 - 필름별 색보정 행렬 직접 설계
 - 실시간 렌더링 성능 최적화, 60fps 유지 목표
 - GLSurfaceView + CameraX 연동 구조 설계
+- 카메라 원본 비율 유지 렌더링

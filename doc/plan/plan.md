@@ -15,7 +15,7 @@ Filmo는 필름 카메라 느낌의 실시간 프리뷰와 촬영 결과물을 �
 | 항목 | 내용 |
 | --- | --- |
 | 프로젝트명 | Filmo |
-| 플랫폼 | Android, minSdk 26 |
+| 플랫폼 | Android, minSdk 24 |
 | 아키텍처 | Feature-based Clean Architecture + MVI |
 | 핵심 기술 | CameraX, OpenGL ES 2.0, GLSL |
 | 서버 | 없음, 로컬 전용 |

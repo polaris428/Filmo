@@ -7,9 +7,9 @@
 | 번호 | 플랜 | 상태 | 비고 |
 | --- | --- | --- | --- |
 | 00 | 프로젝트 기반 만들기 | 진행됨 | Compose, Hilt, Navigation, CameraX 의존성 및 기본 앱 구조가 존재함 |
-| 01 | 앱 진입 후 카메라 보기 | 완료 | 카메라 화면 MVI, CameraX preview controller, `PreviewView` 연결, 기본 필름 `Portra400` 적용 |
+| 01 | 앱 진입 후 카메라 보기 | 완료 | 카메라 화면 MVI, CameraX preview controller, `GLSurfaceView` 기반 preview 연결, 기본 필름 `Portra400` 적용 |
 | 02 | 카메라 권한 처리 | 완료 | 최초 진입 권한 요청, 권한 결과 처리, 거부/다시 묻지 않음 안내, 앱 설정 이동, 복귀 시 재확인 구현 |
-| 03 | OpenGL 렌더링 파이프라인 만들기 | 완료 | `GLSurfaceView`, OES 텍스처, CameraX `SurfaceProvider`, 기본 vertex/fragment shader 연결 |
+| 03 | OpenGL 렌더링 파이프라인 만들기 | 완료 | `GLSurfaceView`, OES 텍스처, CameraX `SurfaceProvider`, vertex shader, 필름 fragment shader 연결, 원본 비율 유지 렌더링 적용 |
 | 04 | 필름 GLSL 셰이더 구현하기 | 완료 | 필름 5종 fragment shader, 공통 GLSL 함수, shader asset 병합, 필름별 uniform config, 런타임 shader 교체 구현 |
 | 05 | 필름 프리뷰 자산 만들기 | 미시작 | 다음 구현 대상 |
 | 06 | 필름 선택하기 | 미시작 | `CameraState.selectedFilm`과 renderer 연동은 있으나, 사용자가 필름을 선택하는 UI/Intent는 아직 없음 |
@@ -60,6 +60,7 @@
   - 다시 묻지 않음 상태에서 설정 이동 버튼 표시
   - 설정에서 권한 허용 후 앱 복귀 시 프리뷰 시작
   - 카메라 프레임이 `GLSurfaceView`를 통해 실시간 표시
+  - 카메라 프리뷰가 원본 비율을 유지하며 화면 안에 맞춰 표시
   - 기본 필름 `Portra400` shader가 프리뷰에 적용
   - renderer에 `FilmType` 변경 요청 시 필름별 shader program 교체
   - 앱 pause/resume 후 GL preview 복구

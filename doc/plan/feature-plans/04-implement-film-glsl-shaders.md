@@ -22,24 +22,30 @@
 | `app/src/main/assets/shader/ilford.frag` | Ilford HP5 |
 | `app/src/main/assets/shader/lomography.frag` | Lomography |
 | `app/src/main/assets/shader/expired.frag` | Expired Film |
-| `app/core/renderer/FilmShaderConfig.kt` | 필름별 shader asset, uniform 기본값 정의 |
-| `app/core/renderer/ShaderProgram.kt` | 공통 uniform 주입 API 보강 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/FilmShaderConfig.kt` | 필름별 shader asset, uniform 기본값 정의 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/ShaderProgram.kt` | 공통 uniform 주입 API 보강 |
 
 ## 상세 개발 절차
 
 1. 모든 필름 fragment shader는 동일한 입력 계약을 사용한다.
    - `uCameraTexture`
    - `uTime`
+   - `uContrast`
+   - `uSaturation`
    - `uNoiseStrength`
    - `uVignetteStrength`
    - `uLightLeakStrength`
+   - `uChromaticAberrationStrength`
    - `vTexCoord`
 2. `common_film.glsl`에 공통 함수를 정의한다.
    - `hashNoise(vec2 uv, float time)`
-   - `applyColorMatrix(vec3 color, mat3 matrix)`
+   - `applyColorMatrix(vec3 color, vec3 redMix, vec3 greenMix, vec3 blueMix)`
+   - `adjustContrast(vec3 color, float contrast)`
+   - `adjustSaturation(vec3 color, float saturation)`
+   - `addFilmNoise(vec2 uv, vec3 color, float time, float strength)`
    - `applyVignette(vec2 uv, vec3 color, float strength)`
    - `applyLightLeak(vec2 uv, vec3 color, float strength)`
-   - `applyChromaticAberration(...)`
+   - `chromaticAberrationOffset(vec2 uv, float amount)`
 3. GLSL ES 2.0에서는 `#include`가 기본 지원되지 않으므로 `ShaderAssetLoader`가 `common_film.glsl` 내용을 fragment shader 앞에 붙여서 compile한다.
 4. 각 필름 shader는 다음 순서로 색을 처리한다.
    - 카메라 텍스처 샘플링
@@ -51,7 +57,7 @@
    - 빛샘 또는 색수차 적용
    - `clamp(color, 0.0, 1.0)`
 5. `FilmShaderConfig`에 필름별 파라미터를 정의한다.
-6. `FilmRenderer.setFilm()`은 shader 교체 후 해당 config의 uniform 값을 주입한다.
+6. `FilmRenderer.setFilm()`은 요청 필름을 갱신하고, GL frame에서 해당 config의 shader로 교체한 뒤 uniform 값을 주입한다.
 7. `uTime`은 frame time 기준으로 계속 갱신해 노이즈가 완전히 고정되어 보이지 않게 한다.
 8. 단, 노이즈가 지나치게 반짝이지 않도록 `floor(uTime * 12.0)`처럼 낮은 갱신 주기를 사용한다.
 9. 저장 이미지도 프리뷰와 같은 렌더링 경로를 통과한 결과를 캡처한다.
@@ -63,8 +69,16 @@ float hashNoise(vec2 uv, float seed) {
     return fract(sin(dot(uv + seed, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
-vec3 applyColorMatrix(vec3 color, mat3 matrix) {
-    return matrix * color;
+vec3 applyColorMatrix(vec3 color, vec3 redMix, vec3 greenMix, vec3 blueMix) {
+    return vec3(
+        dot(color, redMix),
+        dot(color, greenMix),
+        dot(color, blueMix)
+    );
+}
+
+vec3 adjustContrast(vec3 color, float contrast) {
+    return (color - vec3(0.5)) * contrast + vec3(0.5);
 }
 
 vec3 adjustSaturation(vec3 color, float saturation) {
@@ -78,10 +92,23 @@ vec3 applyVignette(vec2 uv, vec3 color, float strength) {
     return mix(color, color * vig, strength);
 }
 
+vec3 addFilmNoise(vec2 uv, vec3 color, float time, float strength) {
+    float seed = floor(time * 12.0);
+    float grain = hashNoise(uv * vec2(1280.0, 720.0), seed) - 0.5;
+    return color + vec3(grain * strength);
+}
+
 vec3 applyLightLeak(vec2 uv, vec3 color, float strength) {
-    float leak = smoothstep(0.65, 1.0, uv.x) * smoothstep(0.2, 0.8, uv.y);
-    vec3 leakColor = vec3(1.0, 0.35, 0.08) * leak * strength;
-    return color + leakColor;
+    float edgeLeak = smoothstep(0.58, 1.0, uv.x) * smoothstep(0.08, 0.76, uv.y);
+    float topLeak = smoothstep(0.78, 1.0, uv.y) * smoothstep(0.10, 0.78, uv.x);
+    vec3 warmLeak = vec3(1.0, 0.35, 0.08) * edgeLeak;
+    vec3 amberLeak = vec3(1.0, 0.62, 0.22) * topLeak * 0.55;
+    return color + (warmLeak + amberLeak) * strength;
+}
+
+vec2 chromaticAberrationOffset(vec2 uv, float amount) {
+    vec2 direction = uv - vec2(0.5);
+    return direction * amount;
 }
 ```
 
@@ -102,10 +129,11 @@ vec3 applyLightLeak(vec2 uv, vec3 color, float strength) {
 따뜻한 피부톤을 위해 red를 올리고 blue를 낮춘다.
 
 ```glsl
-mat3 portraMatrix = mat3(
-    1.08, 0.02, 0.00,
-    0.04, 1.00, 0.02,
-    0.02, 0.00, 0.88
+color = applyColorMatrix(
+    color,
+    vec3(1.08, 0.04, 0.02),
+    vec3(0.02, 1.00, 0.00),
+    vec3(0.00, 0.02, 0.88)
 );
 ```
 
@@ -114,10 +142,11 @@ mat3 portraMatrix = mat3(
 풍경 느낌을 위해 green/blue를 강화한다.
 
 ```glsl
-mat3 velviaMatrix = mat3(
-    0.96, 0.00, 0.02,
-    0.02, 1.12, 0.02,
-    0.00, 0.04, 1.10
+color = applyColorMatrix(
+    color,
+    vec3(0.96, 0.02, 0.00),
+    vec3(0.00, 1.12, 0.04),
+    vec3(0.02, 0.02, 1.10)
 );
 ```
 
@@ -135,10 +164,11 @@ color = vec3(gray);
 과장된 색과 강한 주변부 어둡기를 적용한다.
 
 ```glsl
-mat3 lomoMatrix = mat3(
-    1.15, 0.04, 0.00,
-    0.00, 1.05, 0.04,
-    0.04, 0.00, 1.18
+color = applyColorMatrix(
+    color,
+    vec3(1.15, 0.00, 0.04),
+    vec3(0.04, 1.05, 0.00),
+    vec3(0.00, 0.04, 1.18)
 );
 ```
 
@@ -147,10 +177,11 @@ mat3 lomoMatrix = mat3(
 색바램과 불균일한 녹색/노란색 편차를 만든다.
 
 ```glsl
-mat3 expiredMatrix = mat3(
-    1.02, 0.05, 0.00,
-    0.04, 0.96, 0.02,
-    0.00, 0.04, 0.78
+color = applyColorMatrix(
+    color,
+    vec3(1.02, 0.04, 0.00),
+    vec3(0.05, 0.96, 0.04),
+    vec3(0.00, 0.02, 0.78)
 );
 ```
 

@@ -8,7 +8,8 @@ CameraX에서 들어오는 카메라 프레임을 OpenGL ES 2.0 텍스처로 렌
 
 - `GLSurfaceView` 기반 렌더링 화면
 - 외부 카메라 텍스처 연결
-- vertex shader와 공통 fragment shader 구조
+- vertex shader와 필름 fragment shader 구조
+- 카메라 원본 비율 유지 렌더링
 - shader compile/link 관리
 - 필름 셰이더 교체
 - 렌더링 결과 캡처를 위한 FBO 기반 확장 지점
@@ -17,15 +18,15 @@ CameraX에서 들어오는 카메라 프레임을 OpenGL ES 2.0 텍스처로 렌
 
 | 경로 | 작업 |
 | --- | --- |
-| `app/core/renderer/CameraPreviewView.kt` | Compose `AndroidView`로 `GLSurfaceView` 연결 |
-| `app/core/renderer/FilmGLSurfaceView.kt` | OpenGL 전용 SurfaceView 래퍼 작성 |
-| `app/core/renderer/FilmRenderer.kt` | `GLSurfaceView.Renderer` 구현 |
-| `app/core/renderer/ShaderProgram.kt` | vertex/fragment shader 컴파일, 링크, uniform/attribute 조회 |
-| `app/core/renderer/ShaderAssetLoader.kt` | asset의 `.frag`, `.vert` 파일 로드 |
-| `app/core/renderer/TextureSurfaceSource.kt` | `SurfaceTexture`와 OES texture 생성 |
-| `app/core/renderer/RenderFrameCapturer.kt` | 렌더링 결과 캡처용 FBO/readPixels 확장 지점 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/CameraPreviewView.kt` | Compose `AndroidView`로 `GLSurfaceView` 연결 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/FilmGLSurfaceView.kt` | OpenGL 전용 SurfaceView 래퍼 작성 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/FilmRenderer.kt` | `GLSurfaceView.Renderer`, CameraX `SurfaceProvider` 구현 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/ShaderProgram.kt` | vertex/fragment shader 컴파일, 링크, uniform/attribute 조회 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/ShaderAssetLoader.kt` | asset의 `.frag`, `.vert`, 공통 GLSL 파일 로드 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/TextureSurfaceSource.kt` | `SurfaceTexture`와 OES texture 생성 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/RenderFrameCapturer.kt` | 렌더링 결과 캡처용 FBO/readPixels 확장 지점 |
 | `app/src/main/assets/shader/camera.vert` | 공통 vertex shader |
-| `app/src/main/assets/shader/base_camera.frag` | 필름 없는 기본 fragment shader |
+| `app/src/main/assets/shader/base_camera.frag` | 필름 없는 기본 fragment shader. 현재 기본 렌더링은 `Portra400` shader를 사용하며, 이 파일은 fallback/비교용으로 남아 있음 |
 
 ## 상세 개발 절차
 
@@ -49,6 +50,7 @@ CameraX에서 들어오는 카메라 프레임을 OpenGL ES 2.0 텍스처로 렌
 6. `FilmRenderer.onDrawFrame()`에서 다음 순서로 렌더링한다.
    - `surfaceTexture.updateTexImage()`
    - transform matrix uniform 갱신
+   - 카메라 버퍼 비율과 view 비율을 비교해 `uPositionScale`로 quad 크기 조정
    - 현재 선택된 shader program bind
    - OES texture bind
    - full-screen quad draw
@@ -57,7 +59,9 @@ CameraX에서 들어오는 카메라 프레임을 OpenGL ES 2.0 텍스처로 렌
    - `use()`
    - `setInt(name, value)`
    - `setFloat(name, value)`
+   - `setVec2(name, x, y)`
    - `setMat4(name, value)`
+   - `setFilmConfig(config)`
    - `release()`
 8. 필름 변경 시 `FilmRenderer.setFilm(filmType)`는 다음을 수행한다.
    - 기존 program과 같은 필름이면 아무 작업도 하지 않는다.
@@ -74,7 +78,7 @@ CameraX에서 들어오는 카메라 프레임을 OpenGL ES 2.0 텍스처로 렌
 ```kotlin
 interface FilmRendererController {
     fun setFilm(filmType: FilmType): Result<Unit>
-    fun getInputSurface(): Surface
+    fun getInputSurface(): Surface?
     fun captureCurrentFrame(callback: (Result<CapturedFrame>) -> Unit)
 }
 ```
@@ -86,11 +90,12 @@ attribute vec4 aPosition;
 attribute vec2 aTexCoord;
 
 uniform mat4 uTextureTransform;
+uniform vec2 uPositionScale;
 
 varying vec2 vTexCoord;
 
 void main() {
-    gl_Position = aPosition;
+    gl_Position = vec4(aPosition.xy * uPositionScale, aPosition.z, aPosition.w);
     vec4 transformed = uTextureTransform * vec4(aTexCoord, 0.0, 1.0);
     vTexCoord = transformed.xy;
 }
@@ -114,6 +119,7 @@ void main() {
 
 - 카메라 프레임이 `GLSurfaceView`에 실시간으로 표시된다.
 - 화면 회전 또는 앱 pause/resume 후 GL context가 복구된다.
+- 프리뷰가 늘어나지 않고 원본 카메라 비율을 유지한다.
 - 필름 변경 시 shader program이 교체된다.
 - shader compile 실패 시 기존 필름 렌더링이 유지된다.
 - 프리뷰 렌더링이 빈 화면이나 검은 화면으로 고정되지 않는다.

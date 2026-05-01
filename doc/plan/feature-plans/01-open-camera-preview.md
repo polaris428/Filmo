@@ -16,14 +16,14 @@
 
 | 경로 | 작업 |
 | --- | --- |
-| `app/feature/camera/CameraScreen.kt` | 카메라 화면 Compose 작성 |
-| `app/feature/camera/CameraViewModel.kt` | 화면 진입 이벤트 처리 |
-| `app/feature/camera/CameraState.kt` | 프리뷰, 필름, 로딩, 오류 상태 정의 |
-| `app/feature/camera/CameraIntent.kt` | `OnEnterScreen`, `OnRetryPreview` 정의 |
-| `app/feature/camera/CameraEffect.kt` | 오류 토스트 등 일회성 이벤트 정의 |
-| `app/core/camera/CameraController.kt` | 프리뷰 시작/중지 인터페이스 정의 |
-| `app/core/renderer/FilmRenderer.kt` | 기본 필름 렌더링 진입점 정의 |
-| `app/core/renderer/CameraPreviewView.kt` | Compose에서 렌더러를 붙이는 AndroidView 래퍼 작성 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraScreen.kt` | 카메라 화면 Compose 작성 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraViewModel.kt` | 화면 진입 이벤트 처리 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraState.kt` | 프리뷰, 필름, 로딩, 오류 상태 정의 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraIntent.kt` | `OnEnterScreen`, `OnRetryPreview` 정의 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraEffect.kt` | 오류 토스트 등 일회성 이벤트 정의 |
+| `app/src/main/java/com/polaris/filmo/core/camera/CameraController.kt` | 프리뷰 시작/중지 인터페이스 정의 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/FilmRenderer.kt` | 기본 필름 렌더링 진입점 정의 |
+| `app/src/main/java/com/polaris/filmo/core/renderer/CameraPreviewView.kt` | Compose에서 렌더러를 붙이는 AndroidView 래퍼 작성 |
 
 ## 상세 개발 절차
 
@@ -49,7 +49,7 @@
    - `Ready`: `CameraPreviewView`
    - `PermissionRequired`: 권한 안내는 02 플랜에서 연결
    - `Error`: `ErrorState` 또는 `OverlayPanel`
-10. `CameraPreviewView`는 화면 전체를 채우며, 내부 구현은 `AndroidView`로 `GLSurfaceView` 또는 프리뷰 브리지를 붙인다.
+10. `CameraPreviewView`는 화면 전체 영역에 배치하며, 내부 구현은 `AndroidView`로 `FilmGLSurfaceView`를 붙인다. 실제 영상은 renderer에서 원본 비율을 유지해 화면 안에 맞춘다.
 
 ## 상태/이벤트 계약
 
@@ -70,7 +70,7 @@ sealed interface PreviewState {
 
 ## 디자인 적용
 
-- `CameraPreviewView`는 전체 화면을 채운다.
+- `CameraPreviewView`는 전체 화면 영역을 차지하고, 영상은 원본 비율을 유지한다.
 - 로딩은 `LoadingIndicator(size = medium)`을 중앙에 둔다.
 - 오류는 `OverlayPanel`을 중앙에 배치하고 주요 액션은 `PrimaryButton("다시 시도")`로 둔다.
 - 상단/하단 컨트롤은 이 플랜에서 빈 자리만 확보하고 실제 동작은 후속 플랜에서 연결한다.

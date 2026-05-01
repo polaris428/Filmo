@@ -16,11 +16,11 @@
 
 | 경로 | 작업 |
 | --- | --- |
-| `app/feature/camera/CameraState.kt` | `CameraPermissionState` 추가 |
-| `app/feature/camera/CameraIntent.kt` | 권한 결과 Intent 추가 |
-| `app/feature/camera/CameraEffect.kt` | 권한 요청, 설정 이동 Effect 추가 |
-| `app/feature/camera/CameraScreen.kt` | permission launcher와 안내 UI 연결 |
-| `app/core/camera/CameraPermissionChecker.kt` | 권한 상태 확인 유틸 작성 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraState.kt` | `CameraPermissionState` 추가 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraIntent.kt` | 권한 결과 Intent 추가 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraEffect.kt` | 권한 요청, 설정 이동 Effect 추가 |
+| `app/src/main/java/com/polaris/filmo/feature/camera/CameraScreen.kt` | permission launcher와 안내 UI 연결 |
+| `app/src/main/java/com/polaris/filmo/core/camera/CameraPermissionChecker.kt` | 권한 상태 확인 유틸 작성 |
 
 ## 상세 개발 절차
 

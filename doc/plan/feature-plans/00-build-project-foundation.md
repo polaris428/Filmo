@@ -22,16 +22,16 @@
 | --- | --- |
 | `app/build.gradle.kts` | CameraX, Compose, Hilt, Navigation 의존성 추가 |
 | `app/src/main/AndroidManifest.xml` | 카메라 권한, 하드웨어 feature 선언 |
-| `app/FilmoApp.kt` | Hilt Application 클래스 추가 |
-| `app/MainActivity.kt` | Compose entry, theme, navigation host 연결 |
-| `app/core/design/FilmoTheme.kt` | 색상/타이포그래피/shape 토큰 구현 |
-| `app/core/design/FilmoColors.kt` | 디자인 가이드라인 color token 구현 |
-| `app/core/design/FilmoTypography.kt` | Roboto 기반 typography 구현 |
-| `app/core/design/FilmoSpacing.kt` | spacing, size token 구현 |
-| `app/core/design/FilmoShapes.kt` | radius token 구현 |
-| `app/core/design/FilmoMotion.kt` | motion duration token 구현 |
-| `app/core/navigation/FilmoNavHost.kt` | Camera, Gallery, PhotoDetail route 정의 |
-| `app/core/di/AppModule.kt` | 공통 DI module 자리 생성 |
+| `app/src/main/java/com/polaris/filmo/FilmoApp.kt` | Hilt Application 클래스 추가 |
+| `app/src/main/java/com/polaris/filmo/MainActivity.kt` | Compose entry, theme, navigation host 연결 |
+| `app/src/main/java/com/polaris/filmo/core/design/FilmoTheme.kt` | 색상/타이포그래피/shape 토큰 구현 |
+| `app/src/main/java/com/polaris/filmo/core/design/FilmoColors.kt` | 디자인 가이드라인 color token 구현 |
+| `app/src/main/java/com/polaris/filmo/core/design/FilmoTypography.kt` | Roboto 기반 typography 구현 |
+| `app/src/main/java/com/polaris/filmo/core/design/FilmoSpacing.kt` | spacing, size token 구현 |
+| `app/src/main/java/com/polaris/filmo/core/design/FilmoShapes.kt` | radius token 구현 |
+| `app/src/main/java/com/polaris/filmo/core/design/FilmoMotion.kt` | motion duration token 구현 |
+| `app/src/main/java/com/polaris/filmo/core/navigation/FilmoNavHost.kt` | Camera, Gallery, PhotoDetail route 정의 |
+| `app/src/main/java/com/polaris/filmo/core/di/AppModule.kt` | 공통 DI module 자리 생성 |
 | `app/src/main/res/values/strings.xml` | 기본 문자열 리소스 정의 |
 | `app/src/main/res/values-ko/strings.xml` | 한국어 문자열 리소스 정의 |
 
