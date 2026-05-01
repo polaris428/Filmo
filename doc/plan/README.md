@@ -1,25 +1,63 @@
-# Filmo 구현 진행 현황
+# Filmo 플랜 README
 
-이 문서는 `doc/plan/feature-plans`의 기능 플랜 기준으로 현재 구현 상태를 추적한다.
+Filmo는 필름 카메라 느낌의 실시간 프리뷰와 촬영 결과물을 제공하는 Android 앱이다.
 
-## 현재 진행 상태
+이 문서는 플랜의 단일 관리 지점이다. 기능 플랜 목록, 구현 순서, 현재 상태, 검증 내역은 여기에서만 갱신한다.
 
-| 번호 | 플랜 | 상태 | 비고 |
-| --- | --- | --- | --- |
-| 00 | 프로젝트 기반 만들기 | 진행됨 | Compose, Hilt, Navigation, CameraX 의존성 및 기본 앱 구조가 존재함 |
-| 01 | 앱 진입 후 카메라 보기 | 완료 | 카메라 화면 MVI, CameraX preview controller, `GLSurfaceView` 기반 preview 연결, 기본 필름 `Portra400` 적용 |
-| 02 | 카메라 권한 처리 | 완료 | 최초 진입 권한 요청, 권한 결과 처리, 거부/다시 묻지 않음 안내, 앱 설정 이동, 복귀 시 재확인 구현 |
-| 03 | OpenGL 렌더링 파이프라인 만들기 | 완료 | `GLSurfaceView`, OES 텍스처, CameraX `SurfaceProvider`, vertex shader, 필름 fragment shader 연결, 원본 비율 유지 렌더링 적용 |
-| 04 | 필름 GLSL 셰이더 구현하기 | 완료 | 필름 5종 fragment shader, 공통 GLSL 함수, shader asset 병합, 필름별 uniform config, 런타임 shader 교체 구현 |
-| 05 | 필름 프리뷰 자산 만들기 | 완료 | 필름 5종 drawable 썸네일, 필름 메타데이터, `FilmUiModel` 변환, 문자열/placeholder fallback 구현 |
-| 06 | 필름 선택하기 | 완료 | `GetFilmListUseCase`, `CameraState` 필름 목록/선택 상태, `OnSelectFilm`, 하단 `FilmStrip`/`FilmChip`, renderer 필름 전환 연결 |
-| 07 | 카메라 조작하기 | 미시작 | 다음 구현 대상 |
-| 08 | 필터로 촬영하기 | 미시작 | `RenderFrameCapturer` 인터페이스는 있으나 FBO 캡처 구현은 아직 예약 상태 |
-| 09 | 사진 저장하기 | 미시작 | 08 이후 진행 |
-| 10 | 촬영 사진 목록 보기 | 미시작 | 09 이후 진행 |
-| 11 | 사진 상세 보기와 삭제 | 미시작 | 10 이후 진행 |
-| 12 | 성능, 라이프사이클, QA 정리 | 미시작 | 주요 기능 구현 후 진행 |
-| 13 | 문자열 리소스와 다국어 정리 | 부분 진행 | 카메라 권한/프리뷰/기본 갤러리 라우트 관련 문자열은 `values`, `values-ko`에 추가됨 |
+## 문서 구성
+
+- [아키텍처 문서](./architecture.md): 프로젝트 구조, 기술 스택, 렌더링/저장 파이프라인, 개발 순서
+- [기능 명세 문서](./feature-spec.md): 필름 종류, 화면별 기능, 촬영/갤러리 요구사항, 셰이더 효과
+- [기능 플랜 폴더](./feature-plans): 사용자 액션별 세부 구현 플랜
+- [디자인 문서](../design/README.md): 디자인 가이드라인, 화면 규칙, 컴포넌트 명세
+- [베이스 개발 프롬프트](../prompt/base-development-prompt.md): 모든 작업에서 지켜야 할 공통 개발 규칙
+
+## 프로젝트 개요
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트명 | Filmo |
+| 플랫폼 | Android, minSdk 24 |
+| 아키텍처 | Feature-based Clean Architecture + MVI |
+| 핵심 기술 | CameraX, OpenGL ES 2.0, GLSL |
+| 서버 | 없음, 로컬 전용 |
+| 예상 기간 | 4~5주 |
+
+## 플랜 관리 방식
+
+- 개별 플랜 파일명에는 순번을 붙이지 않고 기능명을 kebab-case로 작성한다.
+- 구현 순서는 아래 플랜 목록을 위에서 아래로 읽는 방식으로만 관리한다.
+- 다음 작업은 위에서부터 처음으로 완료되지 않은 플랜이다.
+- 중간에 새 기능이 들어오면 새 플랜 파일을 추가하고 아래 표의 원하는 위치에 행만 삽입한다.
+- 기존 플랜 파일명은 기능명이 바뀌지 않는 한 변경하지 않는다.
+
+## 플랜 목록
+
+| 액션 | 상태 | 문서 | 관련 도메인 | 비고 |
+| --- | --- | --- | --- | --- |
+| 프로젝트 기반 만들기 | 진행됨 | [build-project-foundation.md](./feature-plans/build-project-foundation.md) | 공통 기반 | Compose, Hilt, Navigation, CameraX 의존성 및 기본 앱 구조가 존재함 |
+| 앱 진입 후 카메라 보기 | 완료 | [open-camera-preview.md](./feature-plans/open-camera-preview.md) | 카메라 프리뷰 | 카메라 화면 MVI, CameraX preview controller, `GLSurfaceView` 기반 preview 연결, 기본 필름 `Portra400` 적용 |
+| 카메라 권한 처리 | 완료 | [handle-camera-permission.md](./feature-plans/handle-camera-permission.md) | 카메라 프리뷰 | 최초 진입 권한 요청, 권한 결과 처리, 거부/다시 묻지 않음 안내, 앱 설정 이동, 복귀 시 재확인 구현 |
+| OpenGL 렌더링 파이프라인 만들기 | 완료 | [build-opengl-rendering-pipeline.md](./feature-plans/build-opengl-rendering-pipeline.md) | 카메라 프리뷰, 촬영 | `GLSurfaceView`, OES 텍스처, CameraX `SurfaceProvider`, vertex shader, 필름 fragment shader 연결, 원본 비율 유지 렌더링 적용 |
+| 필름 GLSL 셰이더 구현하기 | 완료 | [implement-film-glsl-shaders.md](./feature-plans/implement-film-glsl-shaders.md) | 필름 선택, 촬영 | 필름 5종 fragment shader, 공통 GLSL 함수, shader asset 병합, 필름별 uniform config, 런타임 shader 교체 구현 |
+| 필름 프리뷰 자산 만들기 | 완료 | [build-film-preview-assets.md](./feature-plans/build-film-preview-assets.md) | 필름 선택 | 필름 5종 drawable 썸네일, 필름 메타데이터, `FilmUiModel` 변환, 문자열/placeholder fallback 구현 |
+| 필름 선택하기 | 완료 | [select-film.md](./feature-plans/select-film.md) | 필름 선택 | `GetFilmListUseCase`, `CameraState` 필름 목록/선택 상태, `OnSelectFilm`, 하단 `FilmStrip`/`FilmChip`, renderer 필름 전환 연결 |
+| 카메라 조작하기 | 미시작 | [control-camera.md](./feature-plans/control-camera.md) | 카메라 프리뷰 | 다음 구현 대상 |
+| 셔터로 촬영하고 저장하기 | 미시작 | [capture-and-save-photo.md](./feature-plans/capture-and-save-photo.md) | 촬영 | `RenderFrameCapturer` 인터페이스는 있으나 FBO 캡처와 MediaStore 저장 구현은 아직 예약 상태 |
+| 촬영 사진 목록 보기 | 미시작 | [view-gallery-list.md](./feature-plans/view-gallery-list.md) | 갤러리 | 촬영/저장 이후 진행 |
+| 사진 상세 보기와 삭제 | 미시작 | [view-and-delete-photo.md](./feature-plans/view-and-delete-photo.md) | 갤러리 | 갤러리 목록 이후 진행 |
+| 성능, 라이프사이클, QA 정리 | 미시작 | [performance-lifecycle-qa.md](./feature-plans/performance-lifecycle-qa.md) | 공통 품질 | 주요 기능 구현 후 진행 |
+| 문자열 리소스와 다국어 정리 | 부분 진행 | [localization-string-resources.md](./feature-plans/localization-string-resources.md) | 공통 기반 | 카메라 권한/프리뷰/기본 갤러리 라우트 관련 문자열은 `values`, `values-ko`에 추가됨 |
+
+## 공통 작성 기준
+
+- 각 플랜은 사용자 목표를 먼저 정의한다.
+- 구현 범위는 이번 플랜에서 끝내야 하는 것과 후속 플랜으로 넘길 것을 구분할 수 있어야 한다.
+- 파일 작업은 새로 만들거나 수정할 파일 경로와 역할을 명시한다.
+- 상세 개발 절차는 작업자가 순서대로 따라 구현할 수 있을 정도로 구체적으로 작성한다.
+- 상태/이벤트 계약은 MVI 상태, Intent, Effect, 주요 모델을 코드 형태로 명시한다.
+- 화면이 필요한 플랜은 디자인 문서의 컴포넌트 이름을 기준으로 디자인 적용 방식을 명시한다.
+- 검증 기준은 QA 또는 수동 테스트 기준으로 사용할 수 있어야 한다.
 
 ## 구현된 주요 파일
 
@@ -79,6 +117,6 @@
 
 ## 다음 작업
 
-다음 구현 대상은 `07-control-camera.md`이다. 현재 필름 선택과 shader 전환까지 연결되어 있고, 전면/후면 전환과 탭 포커스 같은 카메라 조작 기능은 아직 없다.
+다음 구현 대상은 위 표에서 처음으로 완료되지 않은 [control-camera.md](./feature-plans/control-camera.md)이다. 현재 필름 선택과 shader 전환까지 연결되어 있고, 전면/후면 전환과 탭 포커스 같은 카메라 조작 기능은 아직 없다.
 
-저장 이미지가 프리뷰와 같은 렌더링 경로를 사용해야 한다는 04번의 요구는 08번 `필터로 촬영하기`와 09번 `사진 저장하기`에서 FBO 캡처 및 저장 흐름을 구현할 때 이어서 검증해야 한다.
+저장 이미지가 프리뷰와 같은 렌더링 경로를 사용해야 한다는 `필름 GLSL 셰이더 구현하기`의 요구는 `셔터로 촬영하고 저장하기`에서 FBO 캡처 및 저장 흐름을 구현할 때 이어서 검증해야 한다.

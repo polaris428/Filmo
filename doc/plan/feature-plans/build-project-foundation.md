@@ -1,4 +1,4 @@
-# 00. 프로젝트 기반 만들기
+﻿# 프로젝트 기반 만들기
 
 ## 목표
 
@@ -132,3 +132,4 @@ object FilmoRoutes {
 - Manifest에 카메라 권한이 선언되어 있다.
 - 화면에 노출되는 하드코딩 문자열이 없다.
 - `values/strings.xml`과 `values-ko/strings.xml`이 존재한다.
+

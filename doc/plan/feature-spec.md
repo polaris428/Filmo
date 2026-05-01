@@ -1,4 +1,4 @@
-# Filmo 기능 명세 문서
+﻿# Filmo 기능 명세 문서
 
 ## 필름 종류 및 효과
 
@@ -89,3 +89,4 @@ vec3 lightLeak(vec2 uv, vec3 color) {
     return color + vec3(leak, leak * 0.3, 0.0);
 }
 ```
+

@@ -1,4 +1,4 @@
-# Filmo 아키텍처 문서
+﻿# Filmo 아키텍처 문서
 
 ## 프로젝트 개요
 
@@ -56,7 +56,7 @@ app/
     │   └── CameraEffect.kt
 ```
 
-`media`, `data`, `gallery`, 촬영/저장 유스케이스는 아직 구현 전이며 08~11번 플랜에서 추가한다.
+`media`, `data`, `gallery`, 촬영/저장 유스케이스는 아직 구현 전이며 촬영/저장/갤러리 관련 플랜에서 추가한다.
 
 ## 레이어 책임
 
@@ -81,7 +81,7 @@ feature/
     └── CameraEffect.kt
 ```
 
-`gallery` feature는 아직 구현 전이며 10~11번 플랜에서 추가한다.
+`gallery` feature는 아직 구현 전이며 갤러리 관련 플랜에서 추가한다.
 
 - `State`: 화면을 그리는 데 필요한 단일 상태
 - `Intent`: 사용자의 입력 또는 화면 이벤트
@@ -154,3 +154,4 @@ CameraX Preview의 `SurfaceProvider`를 `FilmRenderer`가 구현하고, CameraX 
 - 실시간 렌더링 성능 최적화, 60fps 유지 목표
 - GLSurfaceView + CameraX 연동 구조 설계
 - 카메라 원본 비율 유지 렌더링
+

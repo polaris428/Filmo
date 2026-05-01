@@ -7,7 +7,7 @@
 1. [아키텍처 문서](../plan/architecture.md)를 확인한다.
 2. [디자인 가이드라인](../design/design-guidelines.md)을 확인한다.
 3. [디자인 컴포넌트 명세](../design/design-components.md)를 확인한다.
-4. 현재 작업에 해당하는 [기능 단위 구현 플랜](../plan/feature-plans/README.md)을 확인한다.
+4. 현재 작업에 해당하는 [플랜 README](../plan/README.md)을 확인한다.
 5. 화면 문구가 필요한 작업이면 이 문서의 문자열 리소스 규칙을 먼저 적용한다.
 
 ## 아키텍처 규칙

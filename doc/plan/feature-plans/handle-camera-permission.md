@@ -1,4 +1,4 @@
-# 02. 카메라 권한 처리
+﻿# 카메라 권한 처리
 
 ## 목표
 
@@ -29,7 +29,7 @@
    - `Granted`
    - `Denied(canRequestAgain: Boolean)`
 2. `OnEnterScreen` 처리 시 `CameraPermissionChecker.hasCameraPermission()`을 먼저 호출한다.
-3. 권한이 있으면 01 플랜의 프리뷰 시작 절차로 이동한다.
+3. 권한이 있으면 `앱 진입 후 카메라 보기` 플랜의 프리뷰 시작 절차로 이동한다.
 4. 권한이 없고 요청 가능하면 `CameraEffect.RequestCameraPermission`을 발생시킨다.
 5. `CameraScreen`에서 `rememberLauncherForActivityResult(RequestPermission())`를 등록한다.
 6. `RequestCameraPermission` Effect를 수신하면 launcher를 실행한다.
@@ -71,3 +71,4 @@ sealed interface CameraEffect {
 - 권한 거부 후 빈 화면이 아니라 안내 패널이 표시된다.
 - 다시 묻지 않음 상태에서는 설정 열기 액션이 표시된다.
 - 설정에서 권한을 켜고 돌아오면 프리뷰가 시작된다.
+

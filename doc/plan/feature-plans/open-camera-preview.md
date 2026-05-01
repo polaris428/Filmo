@@ -1,4 +1,4 @@
-# 01. 앱 진입 후 카메라 보기
+﻿# 앱 진입 후 카메라 보기
 
 ## 목표
 
@@ -47,7 +47,7 @@
 9. `CameraScreen`은 `PreviewState`에 따라 다음을 그린다.
    - `Loading`: 전체 화면 배경 + 중앙 `LoadingIndicator`
    - `Ready`: `CameraPreviewView`
-   - `PermissionRequired`: 권한 안내는 02 플랜에서 연결
+   - `PermissionRequired`: 권한 안내는 `카메라 권한 처리` 플랜에서 연결
    - `Error`: `ErrorState` 또는 `OverlayPanel`
 10. `CameraPreviewView`는 화면 전체 영역에 배치하며, 내부 구현은 `AndroidView`로 `FilmGLSurfaceView`를 붙인다. 실제 영상은 renderer에서 원본 비율을 유지해 화면 안에 맞춘다.
 
@@ -82,3 +82,4 @@ sealed interface PreviewState {
 - 프리뷰 시작 실패 시 오류 패널과 재시도 버튼이 표시된다.
 - 재시도 버튼을 누르면 `CameraController.startPreview()`가 다시 호출된다.
 - 기본 필름 상태가 `Portra400`으로 설정된다.
+

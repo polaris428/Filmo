@@ -1,4 +1,4 @@
-# 06. 필름 선택하기
+﻿# 필름 선택하기
 
 ## 목표
 
@@ -12,7 +12,7 @@
 - 렌더러 셰이더 전환 요청
 - 선택 실패 처리
 
-셰이더 파일과 OpenGL 렌더링 파이프라인 구현은 [03. OpenGL 렌더링 파이프라인 만들기](./03-build-opengl-rendering-pipeline.md), [04. 필름 GLSL 셰이더 구현하기](./04-implement-film-glsl-shaders.md)에서 처리한다. 필름 썸네일과 표시 문구는 [05. 필름 프리뷰 자산 만들기](./05-build-film-preview-assets.md)에서 준비한다.
+셰이더 파일과 OpenGL 렌더링 파이프라인 구현은 [OpenGL 렌더링 파이프라인 만들기](./build-opengl-rendering-pipeline.md), [필름 GLSL 셰이더 구현하기](./implement-film-glsl-shaders.md)에서 처리한다. 필름 썸네일과 표시 문구는 [필름 프리뷰 자산 만들기](./build-film-preview-assets.md)에서 준비한다.
 
 ## 파일 작업
 
@@ -92,3 +92,4 @@ data class CameraState(
 - `CameraIntent.OnSelectFilm(filmId)`가 추가되었고, ViewModel은 빠른 연속 선택 시 이전 선택 job을 취소한다.
 - 선택 성공 시 `FilmRenderer.setFilm()`을 호출하고, 실패 시 이전 필름으로 되돌린 뒤 `ShowError` effect를 보낸다.
 - `CameraScreen`은 preview ready 상태에서 하단 `FilmStrip`을 표시하고, 각 항목은 썸네일/이름/설명/선택 표시/적용 중 indicator를 가진다.
+
