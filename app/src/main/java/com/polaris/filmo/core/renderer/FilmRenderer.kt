@@ -54,15 +54,28 @@ class FilmRenderer @Inject constructor(
     private var positionScaleY: Float = 1f
     private var startTimeNanos: Long = 0L
     @Volatile
+    private var onSurfaceReady: (() -> Unit)? = null
+    @Volatile
     private var pendingCaptureCallback: ((Result<CapturedFrame>) -> Unit)? = null
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
         startTimeNanos = System.nanoTime()
+        textureSurfaceSource?.release()
+        shaderProgram?.release()
+        shaderProgram = null
+        appliedFilm = null
+        lastSurfaceSize = null
+        viewWidth = 0
+        viewHeight = 0
+        positionScaleX = 1f
+        positionScaleY = 1f
+        Matrix.setIdentityM(textureTransform, 0)
         textureSurfaceSource = TextureSurfaceSource.create()
         pendingSurfaceRequest?.let(::provideCameraSurface)
         pendingSurfaceRequest = null
         ensureShaderProgram()
+        onSurfaceReady?.invoke()
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -152,6 +165,10 @@ class FilmRenderer @Inject constructor(
         textureSurfaceSource = null
         pendingSurfaceRequest = null
         appliedFilm = null
+    }
+
+    fun setOnSurfaceReadyListener(listener: (() -> Unit)?) {
+        onSurfaceReady = listener
     }
 
     private fun provideCameraSurface(request: SurfaceRequest) {

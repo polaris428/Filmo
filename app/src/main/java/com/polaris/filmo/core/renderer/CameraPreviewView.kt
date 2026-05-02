@@ -17,10 +17,23 @@ import com.polaris.filmo.domain.model.FilmType
 fun CameraPreviewView(
     renderer: FilmRenderer,
     selectedFilmType: FilmType,
+    onSurfaceReady: () -> Unit,
+    onViewDisposed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var glSurfaceView by remember { mutableStateOf<FilmGLSurfaceView?>(null) }
+
+    DisposableEffect(renderer, onSurfaceReady) {
+        renderer.setOnSurfaceReadyListener {
+            glSurfaceView?.post {
+                onSurfaceReady()
+            }
+        }
+        onDispose {
+            renderer.setOnSurfaceReadyListener(null)
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -33,6 +46,12 @@ fun CameraPreviewView(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            onViewDisposed()
         }
     }
 

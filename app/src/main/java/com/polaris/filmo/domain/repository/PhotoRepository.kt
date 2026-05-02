@@ -9,4 +9,8 @@ interface PhotoRepository {
         frame: CapturedFrame,
         filmType: FilmType
     ): Result<CapturedPhoto>
+
+    suspend fun getCapturedPhotos(): Result<List<CapturedPhoto>>
+
+    suspend fun deletePhoto(photoId: String): Result<Unit>
 }

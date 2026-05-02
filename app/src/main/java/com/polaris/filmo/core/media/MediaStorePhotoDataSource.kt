@@ -1,6 +1,7 @@
 package com.polaris.filmo.core.media
 
 import android.content.ContentValues
+import android.content.ContentUris
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
@@ -57,6 +58,65 @@ class MediaStorePhotoDataSource @Inject constructor(
         } catch (throwable: Throwable) {
             context.contentResolver.delete(uri, null, null)
             throw throwable
+        }
+    }
+
+    override suspend fun getCapturedPhotos(): List<CapturedPhoto> = withContext(Dispatchers.IO) {
+        val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT
+        )
+        val selection: String
+        val selectionArgs: Array<String>
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            selection = "${MediaStore.Images.Media.RELATIVE_PATH} = ? AND " +
+                "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
+            selectionArgs = arrayOf(FILMO_RELATIVE_PATH, "$FILMO_FILE_PREFIX%")
+        } else {
+            selection = "${MediaStore.Images.Media.DATA} LIKE ?"
+            selectionArgs = arrayOf("%/Pictures/Filmo/$FILMO_FILE_PREFIX%")
+        }
+
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        val photos = mutableListOf<CapturedPhoto>()
+
+        context.contentResolver.query(
+            collection,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+            val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+
+            while (cursor.moveToNext()) {
+                val mediaId = cursor.getLong(idColumn)
+                val uri = ContentUris.withAppendedId(collection, mediaId)
+                photos += CapturedPhoto(
+                    id = uri.toString(),
+                    uri = uri.toString(),
+                    filmType = FilmType.Portra400,
+                    createdAt = cursor.getLong(dateAddedColumn) * MILLIS_PER_SECOND,
+                    width = cursor.getInt(widthColumn),
+                    height = cursor.getInt(heightColumn)
+                )
+            }
+        }
+
+        photos
+    }
+
+    override suspend fun deletePhoto(photoId: String) = withContext(Dispatchers.IO) {
+        val deletedRows = context.contentResolver.delete(Uri.parse(photoId), null, null)
+        check(deletedRows > 0) {
+            "Photo could not be deleted."
         }
     }
 
@@ -120,5 +180,8 @@ class MediaStorePhotoDataSource @Inject constructor(
     private companion object {
         const val JPEG_QUALITY = 94
         const val BYTES_PER_PIXEL = 4
+        const val FILMO_RELATIVE_PATH = "Pictures/Filmo/"
+        const val FILMO_FILE_PREFIX = "Filmo_"
+        const val MILLIS_PER_SECOND = 1_000L
     }
 }

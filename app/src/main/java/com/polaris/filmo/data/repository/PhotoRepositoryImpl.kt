@@ -16,4 +16,12 @@ class PhotoRepositoryImpl @Inject constructor(
     ): Result<CapturedPhoto> = runCatching {
         localDataSource.savePhoto(frame, filmType)
     }
+
+    override suspend fun getCapturedPhotos(): Result<List<CapturedPhoto>> = runCatching {
+        localDataSource.getCapturedPhotos()
+    }
+
+    override suspend fun deletePhoto(photoId: String): Result<Unit> = runCatching {
+        localDataSource.deletePhoto(photoId)
+    }
 }

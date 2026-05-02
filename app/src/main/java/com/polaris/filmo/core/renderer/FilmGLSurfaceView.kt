@@ -5,7 +5,7 @@ import android.opengl.GLSurfaceView
 
 class FilmGLSurfaceView(
     context: Context,
-    private val filmRenderer: FilmRenderer
+    filmRenderer: FilmRenderer
 ) : GLSurfaceView(context) {
 
     init {
@@ -13,12 +13,5 @@ class FilmGLSurfaceView(
         preserveEGLContextOnPause = true
         setRenderer(filmRenderer)
         renderMode = RENDERMODE_CONTINUOUSLY
-    }
-
-    override fun onDetachedFromWindow() {
-        queueEvent {
-            filmRenderer.release()
-        }
-        super.onDetachedFromWindow()
     }
 }

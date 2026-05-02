@@ -49,7 +49,9 @@ class CameraViewModel @Inject constructor(
     fun handleIntent(intent: CameraIntent) {
         when (intent) {
             CameraIntent.OnEnterScreen -> checkPermissionAndContinue(requestIfUnknown = true)
-            CameraIntent.OnResume -> checkPermissionAndContinue(requestIfUnknown = false)
+            CameraIntent.OnResume -> onResume()
+            CameraIntent.OnPreviewViewCreated -> Unit
+            CameraIntent.OnPreviewViewDisposed -> onPreviewViewDisposed()
             CameraIntent.OnRetryPreview -> checkPermissionAndContinue(requestIfUnknown = false)
             CameraIntent.OnClickPermissionPrimaryAction -> onClickPermissionPrimaryAction()
             CameraIntent.OnSwitchCamera -> onSwitchCamera()
@@ -62,9 +64,13 @@ class CameraViewModel @Inject constructor(
         }
     }
 
-    fun startPreview(lifecycleOwner: LifecycleOwner) {
+    fun startPreview(
+        lifecycleOwner: LifecycleOwner,
+        force: Boolean = false
+    ) {
         val current = _state.value
-        if (current.previewState !is PreviewState.Loading) return
+        if (!force && current.previewState !is PreviewState.Loading) return
+        if (!permissionChecker.hasCameraPermission()) return
 
         viewModelScope.launch {
             filmRenderer.setFilm(current.selectedFilm)
@@ -95,6 +101,30 @@ class CameraViewModel @Inject constructor(
     override fun onCleared() {
         cameraController.stopPreview()
         super.onCleared()
+    }
+
+    private fun onPreviewViewDisposed() {
+        cameraController.stopPreview()
+        _state.update {
+            when (it.previewState) {
+                PreviewState.Loading -> it.copy(
+                    previewState = PreviewState.Idle,
+                    isInitializing = false
+                )
+
+                else -> it
+            }
+        }
+    }
+
+    private fun onResume() {
+        val current = _state.value
+        if (current.previewState is PreviewState.Ready &&
+            permissionChecker.hasCameraPermission()
+        ) {
+            return
+        }
+        checkPermissionAndContinue(requestIfUnknown = false)
     }
 
     private fun checkPermissionAndContinue(requestIfUnknown: Boolean) {

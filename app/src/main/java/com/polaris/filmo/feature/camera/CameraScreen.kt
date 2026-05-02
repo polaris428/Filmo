@@ -85,6 +85,7 @@ import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun CameraScreen(
+    onOpenGallery: () -> Unit,
     viewModel: CameraViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -175,6 +176,12 @@ fun CameraScreen(
         CameraPreviewView(
             renderer = filmRenderer,
             selectedFilmType = state.selectedFilm,
+            onSurfaceReady = {
+                viewModel.startPreview(lifecycleOwner, force = true)
+            },
+            onViewDisposed = {
+                viewModel.handleIntent(CameraIntent.OnPreviewViewDisposed)
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .onSizeChanged { previewSize = it }
@@ -219,6 +226,19 @@ fun CameraScreen(
         }
 
         if (state.previewState is PreviewState.Ready) {
+            CircleIconButton(
+                enabled = true,
+                onClick = onOpenGallery,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(
+                        top = FilmoSpacing.Space32,
+                        start = FilmoSpacing.Space16
+                    )
+            ) {
+                GalleryIcon()
+            }
+
             CircleIconButton(
                 enabled = !state.isSwitchingCamera,
                 onClick = { viewModel.handleIntent(CameraIntent.OnSwitchCamera) },
@@ -279,6 +299,21 @@ fun CameraScreen(
                     )
             )
         }
+    }
+}
+
+@Composable
+private fun GalleryIcon(
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(FilmoSize.Icon)) {
+        val gap = 3.dp.toPx()
+        val cell = (size.width - gap) / 2f
+        val color = FilmoColors.TextPrimary
+        drawRect(color = color, topLeft = Offset.Zero, size = Size(cell, cell))
+        drawRect(color = color, topLeft = Offset(cell + gap, 0f), size = Size(cell, cell))
+        drawRect(color = color, topLeft = Offset(0f, cell + gap), size = Size(cell, cell))
+        drawRect(color = color, topLeft = Offset(cell + gap, cell + gap), size = Size(cell, cell))
     }
 }
 

@@ -9,4 +9,8 @@ interface PhotoLocalDataSource {
         frame: CapturedFrame,
         filmType: FilmType
     ): CapturedPhoto
+
+    suspend fun getCapturedPhotos(): List<CapturedPhoto>
+
+    suspend fun deletePhoto(photoId: String)
 }
