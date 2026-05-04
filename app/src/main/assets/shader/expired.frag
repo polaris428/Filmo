@@ -1,5 +1,5 @@
 #extension GL_OES_EGL_image_external : require
-precision mediump float;
+precision highp float;
 
 uniform samplerExternalOES uCameraTexture;
 uniform float uTime;
@@ -30,10 +30,8 @@ void main() {
     );
     color = adjustSaturation(color, uSaturation);
 
-    float seed = floor(uTime * 6.0);
-    float tintNoise = hashNoise(floor(vTexCoord * 8.0) / 8.0, seed);
-    vec3 staleTint = mix(vec3(0.08, 0.02, -0.04), vec3(-0.03, 0.06, 0.10), tintNoise);
-    color += staleTint * 0.35;
+    vec3 staleTint = vec3(0.03, 0.02, 0.00);
+    color += staleTint;
 
     color = addFilmNoise(vTexCoord, color, uTime, uNoiseStrength);
     color = applyVignette(vTexCoord, color, uVignetteStrength);

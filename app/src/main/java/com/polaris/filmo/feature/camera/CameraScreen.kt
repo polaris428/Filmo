@@ -13,7 +13,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,15 +23,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -55,13 +50,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -86,6 +79,7 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun CameraScreen(
     onOpenGallery: () -> Unit,
+    onOpenFilmSelection: (String) -> Unit,
     viewModel: CameraViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -110,8 +104,8 @@ fun CameraScreen(
         )
     }
     val filmRenderer = viewModel.filmRenderer
-    val films = remember(context, state.films) {
-        state.films.map { it.toUiModel(context) }
+    val selectedFilmUi = remember(context, state.selectedFilm) {
+        state.selectedFilm.toUiModel(context)
     }
     var previewSize by remember { androidx.compose.runtime.mutableStateOf(IntSize.Zero) }
 
@@ -252,6 +246,18 @@ fun CameraScreen(
                 CameraSwitchIcon()
             }
 
+            FilmPickerButton(
+                filmName = selectedFilmUi.displayName,
+                applying = state.isApplyingFilm,
+                onClick = { onOpenFilmSelection(state.selectedFilmId) },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        start = FilmoSpacing.Space16,
+                        bottom = FilmoSpacing.Space32
+                    )
+            )
+
             FocusRing(
                 focusPoint = state.focusPoint,
                 previewSize = previewSize,
@@ -281,22 +287,42 @@ fun CameraScreen(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 244.dp)
             )
+        }
+    }
+}
 
-            FilmStrip(
-                films = films,
-                selectedFilmId = state.selectedFilmId,
-                isApplyingFilm = state.isApplyingFilm,
-                onSelectFilm = { filmId ->
-                    viewModel.handleIntent(CameraIntent.OnSelectFilm(filmId))
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(
-                        start = FilmoSpacing.Space16,
-                        end = FilmoSpacing.Space16,
-                        bottom = FilmoSpacing.Space24
-                    )
+@Composable
+private fun FilmPickerButton(
+    filmName: String,
+    applying: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        enabled = !applying,
+        modifier = modifier.heightIn(min = FilmoSize.TouchTarget),
+        shape = RoundedCornerShape(FilmoRadius.Full),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = FilmoColors.SurfaceOverlay,
+            contentColor = FilmoColors.TextPrimary,
+            disabledContainerColor = FilmoColors.SurfaceOverlayLight,
+            disabledContentColor = FilmoColors.TextSecondary
+        ),
+        contentPadding = PaddingValues(horizontal = FilmoSpacing.Space16)
+    ) {
+        if (applying) {
+            CircularProgressIndicator(
+                color = FilmoColors.Primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(18.dp)
+            )
+        } else {
+            Text(
+                text = "Film · $filmName",
+                style = FilmoTextStyle.Label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -575,117 +601,6 @@ private fun LoadingState() {
             color = FilmoColors.Primary,
             strokeWidth = 2.dp,
             modifier = Modifier.size(28.dp)
-        )
-    }
-}
-
-@Composable
-private fun FilmStrip(
-    films: List<FilmUiModel>,
-    selectedFilmId: String,
-    isApplyingFilm: Boolean,
-    onSelectFilm: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    LazyRow(
-        modifier = modifier
-            .background(
-                color = FilmoColors.SurfaceOverlay,
-                shape = RoundedCornerShape(FilmoRadius.Md)
-            )
-            .padding(
-                horizontal = FilmoSpacing.Space16,
-                vertical = FilmoSpacing.Space12
-            ),
-        horizontalArrangement = Arrangement.spacedBy(FilmoSpacing.Space8)
-    ) {
-        items(
-            items = films,
-            key = { it.id }
-        ) { film ->
-            FilmChip(
-                film = film,
-                selected = film.id == selectedFilmId,
-                applying = isApplyingFilm && film.id == selectedFilmId,
-                onClick = { onSelectFilm(film.id) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun FilmChip(
-    film: FilmUiModel,
-    selected: Boolean,
-    applying: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val shape = RoundedCornerShape(FilmoRadius.Sm)
-    val borderColor = if (selected) FilmoColors.Primary else Color.Transparent
-
-    Column(
-        modifier = modifier
-            .width(88.dp)
-            .heightIn(min = 112.dp)
-            .clip(shape)
-            .background(FilmoColors.SurfaceOverlayLight, shape)
-            .border(width = 2.dp, color = borderColor, shape = shape)
-            .clickable(enabled = !applying, onClick = onClick)
-            .padding(FilmoSpacing.Space8),
-        verticalArrangement = Arrangement.spacedBy(FilmoSpacing.Space4),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .width(FilmoSize.FilmThumbWidth)
-                .height(FilmoSize.FilmThumbHeight)
-                .clip(RoundedCornerShape(FilmoRadius.Xs))
-        ) {
-            Image(
-                painter = painterResource(film.thumbnailRes),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            if (selected) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(film.accentColor)
-                )
-            }
-            if (applying) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(FilmoColors.SurfaceOverlayLight),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = FilmoColors.Primary,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-
-        Text(
-            text = film.displayName,
-            color = FilmoColors.TextPrimary,
-            style = FilmoTextStyle.Label,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = film.description,
-            color = FilmoColors.TextSecondary,
-            style = FilmoTextStyle.Micro,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
         )
     }
 }

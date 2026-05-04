@@ -1,7 +1,3 @@
-float hashNoise(vec2 uv, float seed) {
-    return fract(sin(dot(uv + seed, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
 vec3 applyColorMatrix(vec3 color, vec3 redMix, vec3 greenMix, vec3 blueMix) {
     return vec3(
         dot(color, redMix),
@@ -20,9 +16,7 @@ vec3 adjustSaturation(vec3 color, float saturation) {
 }
 
 vec3 addFilmNoise(vec2 uv, vec3 color, float time, float strength) {
-    float seed = floor(time * 12.0);
-    float grain = hashNoise(uv * vec2(1280.0, 720.0), seed) - 0.5;
-    return color + vec3(grain * strength);
+    return color;
 }
 
 vec3 applyVignette(vec2 uv, vec3 color, float strength) {
