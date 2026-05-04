@@ -7,6 +7,8 @@
     <string name="action_allow_permission">Allow permission</string>
     <string name="action_open_settings">Open settings</string>
     <string name="action_retry">Retry</string>
+    <string name="action_default">Default</string>
+    <string name="action_close">Close</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_delete">Delete</string>
     <string name="gallery_title">Gallery</string>
@@ -22,4 +24,16 @@
     <string name="film_desc_lomography">Bold lomo tone</string>
     <string name="film_name_expired_film">Expired Film</string>
     <string name="film_desc_expired_film">Faded vintage tone</string>
+    <string name="film_name_analog_scan">Analog Scan</string>
+    <string name="film_desc_analog_scan">Old camera scanline tone</string>
+    <string name="film_name_date_stamp">Date Stamp</string>
+    <string name="film_desc_date_stamp">Analog date imprint tone</string>
+    <string name="film_picker_change_current">Change film - %1$s</string>
+    <string name="film_settings_title">%1$s look</string>
+    <string name="film_adjustment_warmth">Warmth</string>
+    <string name="film_adjustment_tint">Green / Magenta</string>
+    <string name="film_adjustment_contrast">Light contrast</string>
+    <string name="film_adjustment_saturation">Color strength</string>
+    <string name="film_adjustment_grain">Film grain</string>
+    <string name="film_adjustment_vignette">Dark edges</string>
 </resources>

@@ -3,6 +3,8 @@ precision highp float;
 
 uniform samplerExternalOES uCameraTexture;
 uniform float uTime;
+uniform float uTemperature;
+uniform float uTint;
 uniform float uContrast;
 uniform float uSaturation;
 uniform float uNoiseStrength;
@@ -28,6 +30,7 @@ void main() {
         vec3(0.05, 0.96, 0.04),
         vec3(0.00, 0.02, 0.78)
     );
+    color = adjustTemperatureTint(color, uTemperature, uTint);
     color = adjustSaturation(color, uSaturation);
 
     vec3 staleTint = vec3(0.03, 0.02, 0.00);

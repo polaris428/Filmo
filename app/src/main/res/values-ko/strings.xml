@@ -22,4 +22,18 @@
     <string name="film_desc_lomography">강한 로모 톤</string>
     <string name="film_name_expired_film">Expired Film</string>
     <string name="film_desc_expired_film">빛바랜 빈티지 톤</string>
+    <string name="film_name_analog_scan">아날로그 스캔</string>
+    <string name="film_desc_analog_scan">가로줄이 흐르는 옛날 카메라 톤</string>
+    <string name="film_name_date_stamp">날짜 각인</string>
+    <string name="film_desc_date_stamp">연도와 날짜가 찍히는 필름 톤</string>
+    <string name="action_default">기본값</string>
+    <string name="action_close">닫기</string>
+    <string name="film_picker_change_current">필름 변경 - %1$s</string>
+    <string name="film_settings_title">%1$s 색감</string>
+    <string name="film_adjustment_warmth">따뜻함</string>
+    <string name="film_adjustment_tint">초록 / 자홍</string>
+    <string name="film_adjustment_contrast">명암</string>
+    <string name="film_adjustment_saturation">색감 강도</string>
+    <string name="film_adjustment_grain">필름 입자</string>
+    <string name="film_adjustment_vignette">가장자리 어둡게</string>
 </resources>

@@ -43,4 +43,6 @@ private fun FilmType.accentColor(): Color =
         FilmType.IlfordHp5 -> FilmoColors.FilmIlford
         FilmType.Lomography -> FilmoColors.FilmLomography
         FilmType.ExpiredFilm -> FilmoColors.FilmExpired
+        FilmType.AnalogScan -> FilmoColors.FilmAnalogScan
+        FilmType.DateStamp -> FilmoColors.FilmDateStamp
     }

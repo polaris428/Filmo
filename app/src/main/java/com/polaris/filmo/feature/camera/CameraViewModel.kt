@@ -9,6 +9,8 @@ import com.polaris.filmo.core.camera.CameraPermissionChecker
 import com.polaris.filmo.core.camera.LensFacing
 import com.polaris.filmo.core.renderer.CapturedFrame
 import com.polaris.filmo.core.renderer.FilmRenderer
+import com.polaris.filmo.domain.model.FilmAdjustment
+import com.polaris.filmo.domain.model.FilmAdjustmentParameter
 import com.polaris.filmo.domain.model.FilmType
 import com.polaris.filmo.domain.usecase.SavePhotoUseCase
 import com.polaris.filmo.domain.usecase.GetFilmListUseCase
@@ -58,8 +60,14 @@ class CameraViewModel @Inject constructor(
             CameraIntent.OnClickShutter -> onClickShutter()
             CameraIntent.OnRetrySave -> onRetrySave()
             CameraIntent.OnCaptureFeedbackFinished -> onCaptureFeedbackFinished()
+            CameraIntent.OnOpenFilmSettings -> onOpenFilmSettings()
+            CameraIntent.OnCloseFilmSettings -> onCloseFilmSettings()
+            CameraIntent.OnResetFilmAdjustment -> onResetFilmAdjustment()
             is CameraIntent.OnTapPreview -> onTapPreview(intent.x, intent.y)
             is CameraIntent.OnSelectFilm -> onSelectFilm(intent.filmId)
+            is CameraIntent.OnChangeFilmAdjustment -> {
+                onChangeFilmAdjustment(intent.parameter, intent.value)
+            }
             is CameraIntent.OnPermissionResult -> onPermissionResult(intent)
         }
     }
@@ -74,6 +82,7 @@ class CameraViewModel @Inject constructor(
 
         viewModelScope.launch {
             filmRenderer.setFilm(current.selectedFilm)
+            filmRenderer.setFilmAdjustment(current.filmAdjustment)
             cameraController.startPreview(filmRenderer, lifecycleOwner)
                 .onSuccess {
                     _state.update {
@@ -200,15 +209,19 @@ class CameraViewModel @Inject constructor(
         filmSelectionJob?.cancel()
         filmSelectionJob = viewModelScope.launch {
             val previous = _state.value.selectedFilm
+            val previousAdjustment = _state.value.filmAdjustment
+            val nextAdjustment = nextFilm.defaultAdjustment
             _state.update {
                 it.copy(
                     selectedFilm = nextFilm,
                     selectedFilmId = nextFilm.id,
+                    filmAdjustment = nextAdjustment,
                     isApplyingFilm = true
                 )
             }
 
             filmRenderer.setFilm(nextFilm)
+            filmRenderer.setFilmAdjustment(nextAdjustment)
                 .onSuccess {
                     _state.update { it.copy(isApplyingFilm = false) }
                 }
@@ -218,13 +231,43 @@ class CameraViewModel @Inject constructor(
                         it.copy(
                             selectedFilm = previous,
                             selectedFilmId = previous.id,
+                            filmAdjustment = previousAdjustment,
                             isApplyingFilm = false,
                             errorMessage = message
                         )
                     }
+                    filmRenderer.setFilmAdjustment(previousAdjustment)
                     _effects.send(CameraEffect.ShowError(message))
                 }
         }
+    }
+
+    private fun onOpenFilmSettings() {
+        _state.update { it.copy(isFilmSettingsVisible = !it.isFilmSettingsVisible) }
+    }
+
+    private fun onCloseFilmSettings() {
+        _state.update { it.copy(isFilmSettingsVisible = false) }
+    }
+
+    private fun onResetFilmAdjustment() {
+        applyFilmAdjustment(_state.value.selectedFilm.defaultAdjustment)
+    }
+
+    private fun onChangeFilmAdjustment(parameter: FilmAdjustmentParameter, value: Float) {
+        val nextAdjustment = _state.value.filmAdjustment.withParameter(parameter, value)
+        applyFilmAdjustment(nextAdjustment)
+    }
+
+    private fun applyFilmAdjustment(adjustment: FilmAdjustment) {
+        _state.update { it.copy(filmAdjustment = adjustment) }
+        filmRenderer.setFilmAdjustment(adjustment)
+            .onFailure { throwable ->
+                viewModelScope.launch {
+                    val message = throwable.localizedMessage ?: "Film settings could not be applied."
+                    _effects.send(CameraEffect.ShowError(message))
+                }
+            }
     }
 
     private fun onSwitchCamera() {
@@ -240,6 +283,7 @@ class CameraViewModel @Inject constructor(
             cameraController.switchCamera(target)
                 .onSuccess {
                     filmRenderer.setFilm(_state.value.selectedFilm)
+                    filmRenderer.setFilmAdjustment(_state.value.filmAdjustment)
                     _state.update {
                         it.copy(
                             lensFacing = target,

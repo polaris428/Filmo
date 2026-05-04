@@ -9,9 +9,11 @@ import android.view.Surface
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
 import androidx.core.content.ContextCompat
+import com.polaris.filmo.domain.model.FilmAdjustment
 import com.polaris.filmo.domain.model.FilmType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
+import java.util.Calendar
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -41,6 +43,8 @@ class FilmRenderer @Inject constructor(
 
     @Volatile
     private var requestedFilm: FilmType = FilmType.Portra400
+    @Volatile
+    private var requestedAdjustment: FilmAdjustment = requestedFilm.defaultAdjustment
 
     private var appliedFilm: FilmType? = null
     private var textureSurfaceSource: TextureSurfaceSource? = null
@@ -100,7 +104,8 @@ class FilmRenderer @Inject constructor(
         program.setVec2("uPositionScale", positionScaleX, positionScaleY)
         program.setInt("uCameraTexture", 0)
         program.setFloat("uTime", elapsedSeconds())
-        program.setFilmConfig(activeShaderConfig)
+        program.setDateDigits(Calendar.getInstance())
+        program.setFilmConfig(activeShaderConfig.withAdjustment(requestedAdjustment))
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, source.textureId)
@@ -145,6 +150,10 @@ class FilmRenderer @Inject constructor(
 
     override fun setFilm(filmType: FilmType): Result<Unit> = runCatching {
         requestedFilm = filmType
+    }
+
+    override fun setFilmAdjustment(adjustment: FilmAdjustment): Result<Unit> = runCatching {
+        requestedAdjustment = adjustment
     }
 
     override fun getInputSurface(): Surface? =
@@ -214,6 +223,26 @@ class FilmRenderer @Inject constructor(
     private fun elapsedSeconds(): Float {
         if (startTimeNanos == 0L) return 0f
         return (System.nanoTime() - startTimeNanos) / NANOS_PER_SECOND
+    }
+
+    private fun ShaderProgram.setDateDigits(calendar: Calendar) {
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH) + 1
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+        setVec4(
+            name = "uDateDigitsA",
+            x = ((year / 1000) % 10).toFloat(),
+            y = ((year / 100) % 10).toFloat(),
+            z = ((year / 10) % 10).toFloat(),
+            w = (year % 10).toFloat()
+        )
+        setVec4(
+            name = "uDateDigitsB",
+            x = (month / 10).toFloat(),
+            y = (month % 10).toFloat(),
+            z = (day / 10).toFloat(),
+            w = (day % 10).toFloat()
+        )
     }
 
     private fun consumePendingCapture() {

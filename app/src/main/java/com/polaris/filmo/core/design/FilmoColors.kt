@@ -29,4 +29,6 @@ object FilmoColors {
     val FilmIlford = Color(0xFFB8B8B8)
     val FilmLomography = Color(0xFFC24F6D)
     val FilmExpired = Color(0xFFBFA15D)
+    val FilmAnalogScan = Color(0xFF8DB6A4)
+    val FilmDateStamp = Color(0xFFE79B3A)
 }

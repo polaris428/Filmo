@@ -3,6 +3,8 @@ precision highp float;
 
 uniform samplerExternalOES uCameraTexture;
 uniform float uTime;
+uniform float uTemperature;
+uniform float uTint;
 uniform float uContrast;
 uniform float uSaturation;
 uniform float uNoiseStrength;
@@ -17,6 +19,7 @@ void main() {
     float gray = dot(color, vec3(0.299, 0.587, 0.114));
     color = vec3(gray);
     color = adjustContrast(color, uContrast);
+    color = adjustTemperatureTint(color, uTemperature, uTint);
     color = adjustSaturation(color, uSaturation);
     color = addFilmNoise(vTexCoord, color, uTime, uNoiseStrength);
     color = applyVignette(vTexCoord, color, uVignetteStrength);

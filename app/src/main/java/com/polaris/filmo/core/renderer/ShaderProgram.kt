@@ -24,7 +24,13 @@ class ShaderProgram private constructor(
         GLES20.glUniform2f(uniformLocation(name), x, y)
     }
 
+    fun setVec4(name: String, x: Float, y: Float, z: Float, w: Float) {
+        GLES20.glUniform4f(uniformLocation(name), x, y, z, w)
+    }
+
     fun setFilmConfig(config: FilmShaderConfig) {
+        setFloat("uTemperature", config.temperature)
+        setFloat("uTint", config.tint)
         setFloat("uContrast", config.contrast)
         setFloat("uSaturation", config.saturation)
         setFloat("uNoiseStrength", config.noiseStrength)

@@ -3,6 +3,7 @@ package com.polaris.filmo.feature.camera
 import androidx.compose.ui.geometry.Offset
 import com.polaris.filmo.core.camera.LensFacing
 import com.polaris.filmo.domain.model.CapturedPhoto
+import com.polaris.filmo.domain.model.FilmAdjustment
 import com.polaris.filmo.domain.model.FilmType
 
 data class CameraState(
@@ -18,6 +19,8 @@ data class CameraState(
     val films: List<FilmType> = FilmType.entries,
     val selectedFilm: FilmType = FilmType.Portra400,
     val selectedFilmId: String = FilmType.Portra400.id,
+    val filmAdjustment: FilmAdjustment = FilmType.Portra400.defaultAdjustment,
+    val isFilmSettingsVisible: Boolean = false,
     val isApplyingFilm: Boolean = false,
     val isInitializing: Boolean = false,
     val errorMessage: String? = null

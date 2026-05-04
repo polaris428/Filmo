@@ -15,6 +15,12 @@ vec3 adjustSaturation(vec3 color, float saturation) {
     return mix(vec3(luma), color, saturation);
 }
 
+vec3 adjustTemperatureTint(vec3 color, float temperature, float tint) {
+    vec3 temperatureShift = vec3(temperature * 0.10, 0.0, -temperature * 0.10);
+    vec3 tintShift = vec3(tint * 0.06, -tint * 0.04, tint * 0.06);
+    return color + temperatureShift + tintShift;
+}
+
 vec3 addFilmNoise(vec2 uv, vec3 color, float time, float strength) {
     return color;
 }

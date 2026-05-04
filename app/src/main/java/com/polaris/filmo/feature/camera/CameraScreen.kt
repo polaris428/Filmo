@@ -17,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,12 +31,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -74,6 +78,8 @@ import com.polaris.filmo.core.design.FilmoSize
 import com.polaris.filmo.core.design.FilmoSpacing
 import com.polaris.filmo.core.design.FilmoTextStyle
 import com.polaris.filmo.core.renderer.CameraPreviewView
+import com.polaris.filmo.domain.model.FilmAdjustment
+import com.polaris.filmo.domain.model.FilmAdjustmentParameter
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -164,99 +170,130 @@ fun CameraScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(FilmoColors.Background)
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(Color.Black)
+                .fillMaxSize()
         ) {
-            CameraPreviewView(
-                renderer = filmRenderer,
-                selectedFilmType = state.selectedFilm,
-                onSurfaceReady = {
-                    viewModel.startPreview(lifecycleOwner, force = true)
-                },
-                onViewDisposed = {
-                    viewModel.handleIntent(CameraIntent.OnPreviewViewDisposed)
-                },
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .onSizeChanged { previewSize = it }
-                    .pointerInput(state.previewState) {
-                        detectTapGestures { offset ->
-                            if (state.previewState is PreviewState.Ready &&
-                                size.width > 0 &&
-                                size.height > 0
-                            ) {
-                                viewModel.handleIntent(
-                                    CameraIntent.OnTapPreview(
-                                        x = offset.x / size.width,
-                                        y = offset.y / size.height
+                    .weight(1f)
+                    .background(Color.Black)
+            ) {
+                CameraPreviewView(
+                    renderer = filmRenderer,
+                    selectedFilmType = state.selectedFilm,
+                    onSurfaceReady = {
+                        viewModel.startPreview(lifecycleOwner, force = true)
+                    },
+                    onViewDisposed = {
+                        viewModel.handleIntent(CameraIntent.OnPreviewViewDisposed)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onSizeChanged { previewSize = it }
+                        .pointerInput(state.previewState) {
+                            detectTapGestures { offset ->
+                                if (state.previewState is PreviewState.Ready &&
+                                    size.width > 0 &&
+                                    size.height > 0
+                                ) {
+                                    viewModel.handleIntent(
+                                        CameraIntent.OnTapPreview(
+                                            x = offset.x / size.width,
+                                            y = offset.y / size.height
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
-                    }
+                )
+
+                when (val previewState = state.previewState) {
+                    PreviewState.Idle,
+                    PreviewState.Loading -> LoadingState()
+
+                    PreviewState.Ready -> Unit
+
+                    PreviewState.PermissionRequired -> OverlayPanel(
+                        title = stringResource(R.string.camera_permission_title),
+                        message = state.permissionState.permissionMessage(),
+                        actionText = state.permissionState.permissionActionText(),
+                        onAction = {
+                            viewModel.handleIntent(CameraIntent.OnClickPermissionPrimaryAction)
+                        }
+                    )
+
+                    is PreviewState.Error -> OverlayPanel(
+                        title = stringResource(R.string.camera_preview_error_title),
+                        message = previewState.message,
+                        actionText = stringResource(R.string.action_retry),
+                        onAction = { viewModel.handleIntent(CameraIntent.OnRetryPreview) }
+                    )
+                }
+
+                if (state.previewState is PreviewState.Ready) {
+                    FocusRing(
+                        focusPoint = state.focusPoint,
+                        previewSize = previewSize,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    CaptureFlash(
+                        visible = state.captureFeedbackState is CaptureFeedbackState.Flash,
+                        onFinished = {
+                            viewModel.handleIntent(CameraIntent.OnCaptureFeedbackFinished)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            CameraMenuArea(
+                visible = state.previewState is PreviewState.Ready,
+                selectedFilmName = selectedFilmUi.displayName,
+                applyingFilm = state.isApplyingFilm,
+                switchingCamera = state.isSwitchingCamera,
+                capturing = state.isCapturing,
+                saveStatus = state.saveStatus,
+                onOpenGallery = onOpenGallery,
+                onOpenFilmSelection = { onOpenFilmSelection(state.selectedFilmId) },
+                onToggleFilmSettings = {
+                    viewModel.handleIntent(CameraIntent.OnOpenFilmSettings)
+                },
+                onSwitchCamera = { viewModel.handleIntent(CameraIntent.OnSwitchCamera) },
+                onClickShutter = { viewModel.handleIntent(CameraIntent.OnClickShutter) },
+                onRetrySave = { viewModel.handleIntent(CameraIntent.OnRetrySave) }
             )
-
-            when (val previewState = state.previewState) {
-                PreviewState.Idle,
-                PreviewState.Loading -> LoadingState()
-
-                PreviewState.Ready -> Unit
-
-                PreviewState.PermissionRequired -> OverlayPanel(
-                    title = stringResource(R.string.camera_permission_title),
-                    message = state.permissionState.permissionMessage(),
-                    actionText = state.permissionState.permissionActionText(),
-                    onAction = {
-                        viewModel.handleIntent(CameraIntent.OnClickPermissionPrimaryAction)
-                    }
-                )
-
-                is PreviewState.Error -> OverlayPanel(
-                    title = stringResource(R.string.camera_preview_error_title),
-                    message = previewState.message,
-                    actionText = stringResource(R.string.action_retry),
-                    onAction = { viewModel.handleIntent(CameraIntent.OnRetryPreview) }
-                )
-            }
-
-            if (state.previewState is PreviewState.Ready) {
-                FocusRing(
-                    focusPoint = state.focusPoint,
-                    previewSize = previewSize,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                CaptureFlash(
-                    visible = state.captureFeedbackState is CaptureFeedbackState.Flash,
-                    onFinished = {
-                        viewModel.handleIntent(CameraIntent.OnCaptureFeedbackFinished)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
         }
 
-        CameraMenuArea(
-            visible = state.previewState is PreviewState.Ready,
-            selectedFilmName = selectedFilmUi.displayName,
-            applyingFilm = state.isApplyingFilm,
-            switchingCamera = state.isSwitchingCamera,
-            capturing = state.isCapturing,
-            saveStatus = state.saveStatus,
-            onOpenGallery = onOpenGallery,
-            onOpenFilmSelection = { onOpenFilmSelection(state.selectedFilmId) },
-            onSwitchCamera = { viewModel.handleIntent(CameraIntent.OnSwitchCamera) },
-            onClickShutter = { viewModel.handleIntent(CameraIntent.OnClickShutter) },
-            onRetrySave = { viewModel.handleIntent(CameraIntent.OnRetrySave) }
-        )
+        if (state.previewState is PreviewState.Ready && state.isFilmSettingsVisible) {
+            FilmSettingsPanel(
+                filmName = selectedFilmUi.displayName,
+                adjustment = state.filmAdjustment,
+                onClose = {
+                    viewModel.handleIntent(CameraIntent.OnCloseFilmSettings)
+                },
+                onReset = {
+                    viewModel.handleIntent(CameraIntent.OnResetFilmAdjustment)
+                },
+                onChange = { parameter, value ->
+                    viewModel.handleIntent(CameraIntent.OnChangeFilmAdjustment(parameter, value))
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = FilmoSpacing.Space16,
+                        end = FilmoSpacing.Space16,
+                        bottom = 196.dp
+                    )
+            )
+        }
     }
 }
 
@@ -270,6 +307,7 @@ private fun CameraMenuArea(
     saveStatus: SaveStatus?,
     onOpenGallery: () -> Unit,
     onOpenFilmSelection: () -> Unit,
+    onToggleFilmSettings: () -> Unit,
     onSwitchCamera: () -> Unit,
     onClickShutter: () -> Unit,
     onRetrySave: () -> Unit,
@@ -315,7 +353,16 @@ private fun CameraMenuArea(
                     modifier = Modifier.weight(3f)
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(0.45f))
+
+                CircleIconButton(
+                    enabled = !applyingFilm,
+                    onClick = onToggleFilmSettings
+                ) {
+                    SettingsIcon()
+                }
+
+                Spacer(modifier = Modifier.weight(0.55f))
 
                 CircleIconButton(
                     enabled = !switchingCamera,
@@ -338,6 +385,146 @@ private fun CameraMenuArea(
         }
     }
 }
+
+@Composable
+private fun FilmSettingsPanel(
+    filmName: String,
+    adjustment: FilmAdjustment,
+    onClose: () -> Unit,
+    onReset: () -> Unit,
+    onChange: (FilmAdjustmentParameter, Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(max = 320.dp)
+            .background(
+                color = FilmoColors.SurfaceOverlay,
+                shape = RoundedCornerShape(FilmoRadius.Md)
+            )
+            .padding(FilmoSpacing.Space16)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(FilmoSpacing.Space8)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.film_settings_title, filmName),
+                color = FilmoColors.TextPrimary,
+                style = FilmoTextStyle.Label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onReset) {
+                Text(
+                    text = stringResource(R.string.action_default),
+                    style = FilmoTextStyle.Label
+                )
+            }
+            TextButton(onClick = onClose) {
+                Text(
+                    text = stringResource(R.string.action_close),
+                    style = FilmoTextStyle.Label
+                )
+            }
+        }
+
+        AdjustmentSlider(
+            label = stringResource(R.string.film_adjustment_warmth),
+            value = adjustment.temperature,
+            valueRange = -1f..1f,
+            valueText = signedPercent(adjustment.temperature),
+            onValueChange = { onChange(FilmAdjustmentParameter.Temperature, it) }
+        )
+        AdjustmentSlider(
+            label = stringResource(R.string.film_adjustment_tint),
+            value = adjustment.tint,
+            valueRange = -1f..1f,
+            valueText = signedPercent(adjustment.tint),
+            onValueChange = { onChange(FilmAdjustmentParameter.Tint, it) }
+        )
+        AdjustmentSlider(
+            label = stringResource(R.string.film_adjustment_contrast),
+            value = adjustment.contrast,
+            valueRange = 0.5f..1.5f,
+            valueText = multiplierPercent(adjustment.contrast),
+            onValueChange = { onChange(FilmAdjustmentParameter.Contrast, it) }
+        )
+        AdjustmentSlider(
+            label = stringResource(R.string.film_adjustment_saturation),
+            value = adjustment.saturation,
+            valueRange = 0f..2f,
+            valueText = multiplierPercent(adjustment.saturation),
+            onValueChange = { onChange(FilmAdjustmentParameter.Saturation, it) }
+        )
+        AdjustmentSlider(
+            label = stringResource(R.string.film_adjustment_grain),
+            value = adjustment.grain,
+            valueRange = 0f..1f,
+            valueText = plainPercent(adjustment.grain),
+            onValueChange = { onChange(FilmAdjustmentParameter.Grain, it) }
+        )
+        AdjustmentSlider(
+            label = stringResource(R.string.film_adjustment_vignette),
+            value = adjustment.vignette,
+            valueRange = 0f..1f,
+            valueText = plainPercent(adjustment.vignette),
+            onValueChange = { onChange(FilmAdjustmentParameter.Vignette, it) }
+        )
+    }
+}
+
+@Composable
+private fun AdjustmentSlider(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    valueText: String,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(FilmoSpacing.Space4)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = FilmoColors.TextPrimary,
+                style = FilmoTextStyle.Caption,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = valueText,
+                color = FilmoColors.TextSecondary,
+                style = FilmoTextStyle.Caption
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange
+        )
+    }
+}
+
+private fun signedPercent(value: Float): String {
+    val percent = (value * 100).roundToInt()
+    return if (percent > 0) "+$percent" else percent.toString()
+}
+
+private fun multiplierPercent(value: Float): String =
+    "${(value * 100).roundToInt()}%"
+
+private fun plainPercent(value: Float): String =
+    "${(value * 100).roundToInt()}%"
 
 @Composable
 private fun FilmPickerButton(
@@ -367,7 +554,7 @@ private fun FilmPickerButton(
             )
         } else {
             Text(
-                text = "Film - $filmName",
+                text = stringResource(R.string.film_picker_change_current, filmName),
                 style = FilmoTextStyle.Label,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -452,6 +639,44 @@ private fun CameraSwitchIcon(
             strokeWidth = strokeWidth,
             cap = StrokeCap.Round
         )
+    }
+}
+
+@Composable
+private fun SettingsIcon(
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(FilmoSize.Icon)) {
+        val strokeWidth = 2.dp.toPx()
+        val color = FilmoColors.TextPrimary
+        val y1 = size.height * 0.30f
+        val y2 = size.height * 0.52f
+        val y3 = size.height * 0.74f
+
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.18f, y1),
+            end = Offset(size.width * 0.82f, y1),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.18f, y2),
+            end = Offset(size.width * 0.82f, y2),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.18f, y3),
+            end = Offset(size.width * 0.82f, y3),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawCircle(color = color, radius = 3.dp.toPx(), center = Offset(size.width * 0.62f, y1))
+        drawCircle(color = color, radius = 3.dp.toPx(), center = Offset(size.width * 0.38f, y2))
+        drawCircle(color = color, radius = 3.dp.toPx(), center = Offset(size.width * 0.68f, y3))
     }
 }
 
