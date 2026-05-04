@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -162,130 +164,176 @@ fun CameraScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(FilmoColors.Background)
     ) {
-        CameraPreviewView(
-            renderer = filmRenderer,
-            selectedFilmType = state.selectedFilm,
-            onSurfaceReady = {
-                viewModel.startPreview(lifecycleOwner, force = true)
-            },
-            onViewDisposed = {
-                viewModel.handleIntent(CameraIntent.OnPreviewViewDisposed)
-            },
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .onSizeChanged { previewSize = it }
-                .pointerInput(state.previewState) {
-                    detectTapGestures { offset ->
-                        if (state.previewState is PreviewState.Ready &&
-                            size.width > 0 &&
-                            size.height > 0
-                        ) {
-                            viewModel.handleIntent(
-                                CameraIntent.OnTapPreview(
-                                    x = offset.x / size.width,
-                                    y = offset.y / size.height
+                .fillMaxWidth()
+                .weight(1f)
+                .background(Color.Black)
+        ) {
+            CameraPreviewView(
+                renderer = filmRenderer,
+                selectedFilmType = state.selectedFilm,
+                onSurfaceReady = {
+                    viewModel.startPreview(lifecycleOwner, force = true)
+                },
+                onViewDisposed = {
+                    viewModel.handleIntent(CameraIntent.OnPreviewViewDisposed)
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { previewSize = it }
+                    .pointerInput(state.previewState) {
+                        detectTapGestures { offset ->
+                            if (state.previewState is PreviewState.Ready &&
+                                size.width > 0 &&
+                                size.height > 0
+                            ) {
+                                viewModel.handleIntent(
+                                    CameraIntent.OnTapPreview(
+                                        x = offset.x / size.width,
+                                        y = offset.y / size.height
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
-                }
-        )
-
-        when (val previewState = state.previewState) {
-            PreviewState.Idle,
-            PreviewState.Loading -> LoadingState()
-
-            PreviewState.Ready -> Unit
-
-            PreviewState.PermissionRequired -> OverlayPanel(
-                title = stringResource(R.string.camera_permission_title),
-                message = state.permissionState.permissionMessage(),
-                actionText = state.permissionState.permissionActionText(),
-                onAction = {
-                    viewModel.handleIntent(CameraIntent.OnClickPermissionPrimaryAction)
-                }
             )
 
-            is PreviewState.Error -> OverlayPanel(
-                title = stringResource(R.string.camera_preview_error_title),
-                message = previewState.message,
-                actionText = stringResource(R.string.action_retry),
-                onAction = { viewModel.handleIntent(CameraIntent.OnRetryPreview) }
-            )
+            when (val previewState = state.previewState) {
+                PreviewState.Idle,
+                PreviewState.Loading -> LoadingState()
+
+                PreviewState.Ready -> Unit
+
+                PreviewState.PermissionRequired -> OverlayPanel(
+                    title = stringResource(R.string.camera_permission_title),
+                    message = state.permissionState.permissionMessage(),
+                    actionText = state.permissionState.permissionActionText(),
+                    onAction = {
+                        viewModel.handleIntent(CameraIntent.OnClickPermissionPrimaryAction)
+                    }
+                )
+
+                is PreviewState.Error -> OverlayPanel(
+                    title = stringResource(R.string.camera_preview_error_title),
+                    message = previewState.message,
+                    actionText = stringResource(R.string.action_retry),
+                    onAction = { viewModel.handleIntent(CameraIntent.OnRetryPreview) }
+                )
+            }
+
+            if (state.previewState is PreviewState.Ready) {
+                FocusRing(
+                    focusPoint = state.focusPoint,
+                    previewSize = previewSize,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                CaptureFlash(
+                    visible = state.captureFeedbackState is CaptureFeedbackState.Flash,
+                    onFinished = {
+                        viewModel.handleIntent(CameraIntent.OnCaptureFeedbackFinished)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
-        if (state.previewState is PreviewState.Ready) {
-            CircleIconButton(
-                enabled = true,
-                onClick = onOpenGallery,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(
-                        top = FilmoSpacing.Space32,
-                        start = FilmoSpacing.Space16
-                    )
+        CameraMenuArea(
+            visible = state.previewState is PreviewState.Ready,
+            selectedFilmName = selectedFilmUi.displayName,
+            applyingFilm = state.isApplyingFilm,
+            switchingCamera = state.isSwitchingCamera,
+            capturing = state.isCapturing,
+            saveStatus = state.saveStatus,
+            onOpenGallery = onOpenGallery,
+            onOpenFilmSelection = { onOpenFilmSelection(state.selectedFilmId) },
+            onSwitchCamera = { viewModel.handleIntent(CameraIntent.OnSwitchCamera) },
+            onClickShutter = { viewModel.handleIntent(CameraIntent.OnClickShutter) },
+            onRetrySave = { viewModel.handleIntent(CameraIntent.OnRetrySave) }
+        )
+    }
+}
+
+@Composable
+private fun CameraMenuArea(
+    visible: Boolean,
+    selectedFilmName: String,
+    applyingFilm: Boolean,
+    switchingCamera: Boolean,
+    capturing: Boolean,
+    saveStatus: SaveStatus?,
+    onOpenGallery: () -> Unit,
+    onOpenFilmSelection: () -> Unit,
+    onSwitchCamera: () -> Unit,
+    onClickShutter: () -> Unit,
+    onRetrySave: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(FilmoColors.Surface)
+            .padding(
+                start = FilmoSpacing.Space16,
+                top = FilmoSpacing.Space16,
+                end = FilmoSpacing.Space16,
+                bottom = FilmoSpacing.Space24
+            ),
+        verticalArrangement = Arrangement.spacedBy(FilmoSpacing.Space16),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (visible) {
+            SaveStatusToast(
+                saveStatus = saveStatus,
+                onRetry = onRetrySave,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                GalleryIcon()
+                CircleIconButton(
+                    enabled = true,
+                    onClick = onOpenGallery
+                ) {
+                    GalleryIcon()
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                FilmPickerButton(
+                    filmName = selectedFilmName,
+                    applying = applyingFilm,
+                    onClick = onOpenFilmSelection,
+                    modifier = Modifier.weight(3f)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                CircleIconButton(
+                    enabled = !switchingCamera,
+                    onClick = onSwitchCamera
+                ) {
+                    CameraSwitchIcon()
+                }
             }
-
-            CircleIconButton(
-                enabled = !state.isSwitchingCamera,
-                onClick = { viewModel.handleIntent(CameraIntent.OnSwitchCamera) },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(
-                        top = FilmoSpacing.Space32,
-                        end = FilmoSpacing.Space16
-                    )
-            ) {
-                CameraSwitchIcon()
-            }
-
-            FilmPickerButton(
-                filmName = selectedFilmUi.displayName,
-                applying = state.isApplyingFilm,
-                onClick = { onOpenFilmSelection(state.selectedFilmId) },
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(
-                        start = FilmoSpacing.Space16,
-                        bottom = FilmoSpacing.Space32
-                    )
-            )
-
-            FocusRing(
-                focusPoint = state.focusPoint,
-                previewSize = previewSize,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            CaptureFlash(
-                visible = state.captureFeedbackState is CaptureFeedbackState.Flash,
-                onFinished = {
-                    viewModel.handleIntent(CameraIntent.OnCaptureFeedbackFinished)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
 
             ShutterButton(
-                capturing = state.isCapturing,
-                onClick = { viewModel.handleIntent(CameraIntent.OnClickShutter) },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 156.dp)
+                capturing = capturing,
+                onClick = onClickShutter
             )
-
-            SaveStatusToast(
-                saveStatus = state.saveStatus,
-                onRetry = { viewModel.handleIntent(CameraIntent.OnRetrySave) },
+        } else {
+            Spacer(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 244.dp)
+                    .fillMaxWidth()
+                    .heightIn(min = 164.dp)
             )
         }
     }
@@ -319,7 +367,7 @@ private fun FilmPickerButton(
             )
         } else {
             Text(
-                text = "Film · $filmName",
+                text = "Film - $filmName",
                 style = FilmoTextStyle.Label,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
