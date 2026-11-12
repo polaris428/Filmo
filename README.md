@@ -4,11 +4,15 @@
 
 ## 실행 화면
 
-Android 36 에뮬레이터에서 디버그 빌드를 실행해 캡처한 화면입니다. 카메라 프리뷰의 피사체는 에뮬레이터가 제공하는 가상 장면입니다.
+Android 36 에뮬레이터에서 실행한 앱을 캡처했습니다. 카메라 입력에는 생성한 풍경 이미지를 사용했으며, 아래 필터 효과와 UI는 Filmo가 실제로 렌더링한 결과입니다.
 
-| 카메라 프리뷰 | 필름 선택 | 필름 설정 |
-| --- | --- | --- |
-| <img src="docs/screenshots/camera.png" alt="카메라 프리뷰" width="240"> | <img src="docs/screenshots/film-selection.png" alt="필름 선택" width="240"> | <img src="docs/screenshots/film-settings.png" alt="필름 설정" width="240"> |
+| Portra 400 | Velvia 50 | Ilford HP5 | Lomography |
+| --- | --- | --- | --- |
+| <img src="docs/screenshots/portra-400.jpg" alt="Portra 400 필터를 적용한 카메라 화면" width="180"> | <img src="docs/screenshots/velvia-50.jpg" alt="Velvia 50 필터를 적용한 카메라 화면" width="180"> | <img src="docs/screenshots/ilford-hp5.jpg" alt="Ilford HP5 필터를 적용한 카메라 화면" width="180"> | <img src="docs/screenshots/lomography.jpg" alt="Lomography 필터를 적용한 카메라 화면" width="180"> |
+
+| 필름 선택 | 필름 설정 |
+| --- | --- |
+| <img src="docs/screenshots/film-selection.png" alt="필름 선택 화면" width="240"> | <img src="docs/screenshots/film-settings.png" alt="필름 설정 화면" width="240"> |
 
 ## 주요 기능
 
