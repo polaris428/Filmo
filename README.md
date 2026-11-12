@@ -2,6 +2,14 @@
 
 필름 카메라의 색감을 실시간으로 미리 보고 촬영할 수 있는 Android 앱입니다. 선택한 필름 효과가 적용된 사진을 기기에 저장하고 앱 내 갤러리에서 확인할 수 있습니다.
 
+## 실행 화면
+
+Android 36 에뮬레이터에서 디버그 빌드를 실행해 캡처한 화면입니다. 카메라 프리뷰의 피사체는 에뮬레이터가 제공하는 가상 장면입니다.
+
+| 카메라 프리뷰 | 필름 선택 | 필름 설정 |
+| --- | --- | --- |
+| <img src="docs/screenshots/camera.png" alt="카메라 프리뷰" width="240"> | <img src="docs/screenshots/film-selection.png" alt="필름 선택" width="240"> | <img src="docs/screenshots/film-settings.png" alt="필름 설정" width="240"> |
+
 ## 주요 기능
 
 - **실시간 필름 프리뷰**: CameraX 화면을 OpenGL ES와 GLSL 셰이더로 렌더링합니다.
